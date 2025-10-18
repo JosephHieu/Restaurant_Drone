@@ -1,5 +1,5 @@
 server:
-  port: 8081
+  port: 8082
   servlet:
     context-path: /
 
@@ -10,7 +10,7 @@ spring:
 
   # Kết nối tới database
   datasource:
-    url: jdbc:mysql://localhost:3308/user_service
+    url: jdbc:mysql://localhost:3308/order_service
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -23,8 +23,3 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
-
-logging:
-  level:
-    org.springframework.security: DEBUG
-    org.springframework.web: DEBUG
