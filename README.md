@@ -7,5 +7,6 @@
 <img width="1118" height="397" alt="image" src="https://github.com/user-attachments/assets/75f8ce0e-4fe9-4bd0-9083-f5076aab5758" />
 
 ### restaurant-service
-<img width="1059" height="369" alt="image" src="https://github.com/user-attachments/assets/aea57be9-801d-45ed-9ad9-3107160ee631" />
+<img width="1043" height="636" alt="image" src="https://github.com/user-attachments/assets/6c2e0a4c-d5e7-4525-901c-07f430c03227" />
+
 
