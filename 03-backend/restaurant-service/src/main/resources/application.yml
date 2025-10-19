@@ -1,0 +1,30 @@
+server:
+  port: 8083
+  servlet:
+    context-path: /
+
+spring:
+  # Tắt banner
+  main:
+    banner-mode: off
+
+  # Kết nối tới database
+  datasource:
+    url: jdbc:mysql://localhost:3308/restaurant_service
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # jpa
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
