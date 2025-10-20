@@ -19,7 +19,7 @@ export default function FoodSection() {
     const fetchMenuItems = async () => {
       try {
         const restaurantId = "a1b2c3d4-e5f6-7890-1234-567890abcdef";
-        const apiUrl = `http://localhost:8083/api/restaurants/${restaurantId}/menu-items`;
+        const apiUrl = `http://localhost:8080/api/restaurants/${restaurantId}/menu-items`;
         const response = await fetch(apiUrl);
         if (!response.ok)
           throw new Error(`Lỗi HTTP! Status: ${response.status}`);
