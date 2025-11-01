@@ -1,19 +1,14 @@
 package com.josephhieu.userservice.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Data;
 
+@Data
 @Entity
 @Table(name = "roles")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
 public class Role {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long roleId;
-
-    @Column(nullable = false)
+    private Integer roleId;
     private String name;
 }
