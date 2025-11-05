@@ -21,7 +21,6 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationEntryPoint unauthorizedHandler;
-
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -38,18 +37,26 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) // Tắt CSRF
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedHandler)) // Xử lý lỗi 401
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Không dùng session
+                .csrf(csrf -> csrf.disable())
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedHandler))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // Cho phép /api/auth
-                        .requestMatchers("/eureka/**").permitAll() // Cho phép Eureka
-                        .anyRequest().authenticated() // Tất cả các request khác phải xác thực
+                        .requestMatchers("/api/auth/**").permitAll() // <-- Cho phép Đăng nhập/Đăng ký
+                        .requestMatchers("/eureka/**").permitAll() // <-- Cho phép Eureka
+
+                        // API "/api/users/me" chỉ cần đăng nhập là được
+                        .requestMatchers("/api/users/me").authenticated()
+
+                        // Tất cả các API /api/users/ khác (như GET, POST, DELETE)
+                        // Phải được xử lý bằng @PreAuthorize (vì đã bật @EnableMethodSecurity)
+                        .requestMatchers("/api/users/**").authenticated()
+
+                        .requestMatchers("/api/cart/**").authenticated()
+
+                        .anyRequest().authenticated()
                 );
 
-        // Thêm bộ lọc JWT của chúng ta vào trước bộ lọc username/password
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
 }

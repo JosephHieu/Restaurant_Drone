@@ -65,7 +65,6 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        // ** Rất quan trọng: Tạo giỏ hàng rỗng cho user mới **
         Cart cart = new Cart();
         cart.setUser(savedUser);
         cartRepository.save(cart);

@@ -1,11 +1,14 @@
 package com.josephhieu.userservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 
 @Data
+@NoArgsConstructor
 @Entity
 @Table(name = "carts")
 public class Cart {
@@ -14,10 +17,10 @@ public class Cart {
     private Integer cartId;
 
     @OneToOne
-    @JoinColumn(name = "userId")
+    @JoinColumn(name = "user_id") // (Dòng này đã đúng)
+    @JsonIgnore
     private User user;
 
-    // Chỉ lưu ID, vì Restaurant là của service khác
     private Integer restaurantId;
 
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)

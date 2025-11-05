@@ -3,8 +3,10 @@ package com.josephhieu.userservice.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
 @Entity
 @Table(name = "cart_items")
 public class CartItem {
@@ -13,13 +15,14 @@ public class CartItem {
     private Integer cartItemId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cartId")
-    @JsonIgnore // Tránh lặp vô hạn khi serialize
+    @JoinColumn(name = "cart_id") // (Dòng này đã đúng)
+    @JsonIgnore
     private Cart cart;
-
-    // Chỉ lưu ID, vì MenuItem là của service khác
     private Integer itemId;
 
     private Integer quantity;
     private String note;
+
+    // (Script SQL của bạn không có cột 'addedAt', nên hãy xóa trường này đi)
+    // private LocalDateTime addedAt;
 }

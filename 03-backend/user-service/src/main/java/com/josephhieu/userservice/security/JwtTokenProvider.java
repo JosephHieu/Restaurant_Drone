@@ -19,6 +19,7 @@ public class JwtTokenProvider {
 
     public JwtTokenProvider(@Value("${jwt.secret}") String jwtSecret,
                             @Value("${jwt.expiration-ms}") long jwtExpirationMs) {
+        // Cập nhật cho jjwt 0.11.5+
         this.jwtSecretKey = Keys.hmacShaKeyFor(jwtSecret.getBytes());
         this.jwtExpirationMs = jwtExpirationMs;
     }
@@ -32,7 +33,7 @@ public class JwtTokenProvider {
                 .setSubject(Integer.toString(userDetails.getId()))
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
-                .signWith(jwtSecretKey, SignatureAlgorithm.HS256)
+                .signWith(jwtSecretKey, SignatureAlgorithm.HS256) // Cập nhật algorithm
                 .compact();
     }
 
