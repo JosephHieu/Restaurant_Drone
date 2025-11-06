@@ -20,10 +20,10 @@ const nav__links = [
   },
   {
     display: "Món ăn",
-    path: "/pizzas",
+    path: "/products",
   },
   {
-    display: "Đơn hàng",
+    display: "Giỏ hàng",
     path: "/cart",
   },
 ];

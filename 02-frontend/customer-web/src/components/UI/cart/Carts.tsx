@@ -46,7 +46,7 @@ const Carts = () => {
 
         <div className="cart__item-list">
           {cartProducts.length === 0 ? (
-            <h6 className="text-center">No item added to the cart</h6>
+            <h6 className="text-center">Chưa có sản phẩm nào trong giỏ hàng</h6>
           ) : (
             cartProducts.map((item, index) => (
               <CartItem item={item} key={index} onClose={toggleCart}/>
@@ -56,11 +56,11 @@ const Carts = () => {
 
         <div className="cart__bottom d-flex align-items-center justify-content-between">
           <h6>
-            Subtotal : <span>${totalAmount}</span>
+            Tổng tiền : <span>{totalAmount} 000.VNĐ</span>
           </h6>
           <button>
             <Link to="/checkout" onClick={toggleCart}>
-              Checkout
+              Thanh toán
             </Link>
           </button>
         </div>

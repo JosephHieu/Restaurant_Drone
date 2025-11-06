@@ -50,7 +50,7 @@ const CartItem = (props: CartItemProps) => {
   };
 
   const handlePizzaSelection = () =>  {
-    navigate(`/pizzas/${id}`);
+    navigate(`/products/${id}`);
     onClose(); 
   }
 
@@ -63,7 +63,7 @@ const CartItem = (props: CartItemProps) => {
           <div>
             <h6 className="cart__product-title">{title}</h6>
             <p className=" d-flex align-items-center gap-5 cart__product-price">
-              {quantity}x <span>${price}</span>
+              {quantity}x <span>{price} 000.VNĐ</span>
             </p>
             <div className="d-flex flex-column">
             {
@@ -79,12 +79,12 @@ const CartItem = (props: CartItemProps) => {
               }
               </div>
             <div className=" d-flex align-items-center justify-content-between increase__decrease-btn">
-              <span className="increase__btn" onClick={event => incrementItem(event)}>
-                <i className="ri-add-line"></i>
-              </span>
-              <span className="quantity">{quantity}</span>
               <span className="decrease__btn" onClick={event => decreaseItem(event)}>
                 <i className="ri-subtract-line"></i>
+              </span>
+              <span className="quantity">{quantity}</span>
+              <span className="increase__btn" onClick={event => incrementItem(event)}>
+                <i className="ri-add-line"></i>
               </span>
             </div>
           </div>

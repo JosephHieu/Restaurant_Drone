@@ -46,9 +46,9 @@ const ProductCard = (props: ProductCardProps) => {
         </h5>
       </div>
       <div className="d-flex flex-column align-items-center justify-content-between">
-        <span className="product__price mb-2">{price} € </span>
+        <span className="product__price mb-2">{price} 000.VNĐ </span>
         <button className="addTOCART__btn" onClick={addToCart}>
-          Add to Cart
+          Thêm vào giỏ hàng
         </button>
       </div>
     </div>
