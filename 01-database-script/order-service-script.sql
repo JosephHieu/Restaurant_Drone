@@ -1,83 +1,83 @@
 use order_service;
 
--- =====================
--- BẢNG ORDERS
--- =====================
-CREATE TABLE orders (
-    order_id VARCHAR(36) PRIMARY KEY,          -- VD: UUID '550e8400-e29b-41d4-a716-446655440000'
-    order_code VARCHAR(50) UNIQUE NOT NULL,    -- VD: 'ORD-2025-0001'
-    customer_id VARCHAR(36) NOT NULL,          -- ID từ User Service
-    restaurant_id VARCHAR(36) NOT NULL,        -- ID từ Restaurant Service
-    total_amount DECIMAL(10,2) NOT NULL,
-    delivery_address VARCHAR(255),
-    payment_id VARCHAR(36),                    -- ID từ Payment Service
-    delivery_id VARCHAR(36),                   -- ID từ Drone Service
-    status ENUM('PENDING','ACCEPTED','PREPARING','DELIVERING','DELIVERED','COMPLETED','CANCELLED') DEFAULT 'PENDING',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+/*
+ * Script CREATE TABLE cho Order Service (order_service_db)
+ */
 
--- =====================
--- BẢNG ORDER_ITEMS
--- =====================
-CREATE TABLE order_items (
-    order_item_id VARCHAR(36) PRIMARY KEY,
-    order_id VARCHAR(36) NOT NULL,
-    product_id VARCHAR(36) NOT NULL,       -- ID từ Restaurant Service
-    product_name VARCHAR(100),
-    quantity INT NOT NULL CHECK (quantity > 0),
-    price DECIMAL(10,2) NOT NULL,
-    total_price DECIMAL(10,2) AS (quantity * price) STORED,
-    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE
-);
+-- 1. Bảng `orders` (Đơn hàng chính)
+CREATE TABLE IF NOT EXISTS `orders` (
+    `order_id` INT AUTO_INCREMENT PRIMARY KEY,
+    `customer_id` INT NOT NULL,     -- ID khách hàng (Từ User Service)
+    `restaurant_id` INT NOT NULL,   -- ID nhà hàng (Từ Restaurant Service)
+    `total_price` DECIMAL(10, 2) NOT NULL,
+    `delivery_address` TEXT NOT NULL,
+    `status` VARCHAR(50) NOT NULL, -- Ví dụ: 'PENDING', 'CONFIRMED', 'DELIVERING', 'COMPLETED'
+    `payment_method` VARCHAR(50) NOT NULL, -- 'COD' hoặc 'VNPay'
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- =====================
--- BẢNG ORDER_STATUS_HISTORY
--- =====================
-CREATE TABLE order_status_history (
-    id VARCHAR(36) PRIMARY KEY,
-    order_id VARCHAR(36) NOT NULL,
-    old_status VARCHAR(50),
-    new_status VARCHAR(50),
-    changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE
-);
+-- 2. Bảng `order_items` (Chi tiết đơn hàng - Snapshot)
+CREATE TABLE IF NOT EXISTS `order_items` (
+    `order_item_id` INT AUTO_INCREMENT PRIMARY KEY,
+    `order_id` INT NOT NULL,
+    `item_id` INT NOT NULL,          -- ID món ăn (Từ Restaurant Service)
+    `name` VARCHAR(255) NOT NULL,    -- Snapshot Tên món
+    `price` DECIMAL(10, 2) NOT NULL, -- Snapshot Giá
+    `quantity` INT NOT NULL,
+    `note` VARCHAR(255),
+    
+    -- Khóa ngoại nội bộ (từ item sang order)
+    FOREIGN KEY (`order_id`) REFERENCES `orders`(`order_id`)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 3. Bảng `reviews` (Đánh giá)
+CREATE TABLE IF NOT EXISTS `reviews` (
+    `review_id` INT AUTO_INCREMENT PRIMARY KEY,
+    `order_id` INT NOT NULL UNIQUE, -- Mỗi đơn hàng chỉ có 1 review
+    `rating` INT NOT NULL,          -- Xếp hạng từ 1 đến 5
+    `comment` TEXT,
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    -- Khóa ngoại nội bộ (từ review sang order)
+    FOREIGN KEY (`order_id`) REFERENCES `orders`(`order_id`)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO orders (order_id, order_code, customer_id, restaurant_id, total_amount, delivery_address, payment_id, delivery_id, status, created_at, updated_at)
+-- Chèn dữ liệu cho Order Service
+
+-- 1. Thêm 3 Đơn hàng (giả định customer_id 3, 4 là khách hàng thường)
+INSERT INTO `orders` 
+    (`customer_id`, `restaurant_id`, `total_price`, `delivery_address`, `status`, `payment_method`)
 VALUES
-('a1b2c3d4-e001-4001-aaaa-000000000001', 'ORD-2025-0001', 'USR-001', 'RES-001', 250000, '12 Nguyễn Huệ, Q1, TP.HCM', 'PAY-001', 'DRONE-001', 'DELIVERED', NOW(), NOW()),
-('a1b2c3d4-e002-4001-aaaa-000000000002', 'ORD-2025-0002', 'USR-002', 'RES-002', 180000, '45 Trần Hưng Đạo, Q5, TP.HCM', 'PAY-002', 'DRONE-002', 'DELIVERING', NOW(), NOW()),
-('a1b2c3d4-e003-4001-aaaa-000000000003', 'ORD-2025-0003', 'USR-003', 'RES-001', 320000, '89 Lê Lợi, Q1, TP.HCM', 'PAY-003', 'DRONE-003', 'PREPARING', NOW(), NOW());
-
-INSERT INTO order_items (order_item_id, order_id, product_id, product_name, quantity, price)
+    -- Đơn hàng 1: Khách 3 mua ở Quán 1 (Phở Hùng)
+    (3, 1, 115000.00, '789 Đường Khách, Q.Tân Bình, TPHCM', 'COMPLETED', 'COD'), 
+    
+    -- Đơn hàng 2: Khách 4 mua ở Quán 5 (Hàn Xẻng)
+    (4, 5, 205000.00, '101 Đường B, Q7, TPHCM', 'DELIVERING', 'VNPay'),  
+    
+    -- Đơn hàng 3: Chủ quán Park Jung Ku (ID 10) mua ở Quán 2 (Cơm Tấm Cali)
+    (10, 2, 80000.00, 'Gò Vấp, TPHCM', 'PENDING', 'COD'); 
+    
+-- 2. Thêm Chi tiết đơn hàng (Order Items)
+INSERT INTO `order_items` 
+    (`order_id`, `item_id`, `name`, `price`, `quantity`, `note`)
 VALUES
--- Order 1
-('it-0001', 'a1b2c3d4-e001-4001-aaaa-000000000001', 'PROD-001', 'Phở Bò Tái', 2, 50000),
-('it-0002', 'a1b2c3d4-e001-4001-aaaa-000000000001', 'PROD-002', 'Trà Đào Cam Sả', 1, 50000),
-
--- Order 2
-('it-0003', 'a1b2c3d4-e002-4001-aaaa-000000000002', 'PROD-010', 'Bún Chả Hà Nội', 2, 60000),
-('it-0004', 'a1b2c3d4-e002-4001-aaaa-000000000002', 'PROD-011', 'Nước Suối', 1, 20000),
-
--- Order 3
-('it-0005', 'a1b2c3d4-e003-4001-aaaa-000000000003', 'PROD-020', 'Cơm Gà Hải Nam', 2, 80000),
-('it-0006', 'a1b2c3d4-e003-4001-aaaa-000000000003', 'PROD-021', 'Trà Tắc', 1, 60000);
-
-INSERT INTO order_status_history (id, order_id, old_status, new_status, changed_at)
+    -- Thuộc Order 1 (Item 1 + Item 11)
+    (1, 1, 'Phở Tái Nạm Gầu', 65000.00, 1, NULL),     
+    (1, 11, 'Chả Giò Chiên', 50000.00, 1, 'Thêm tương ớt'),      
+    
+    -- Thuộc Order 2 (Item 3 + Item 13)
+    (2, 3, 'Cơm Sườn Bì Chả Đặc Biệt', 55000.00, 1, 'Không bì'), 
+    (2, 13, 'Mực rim mắm me', 150000.00, 1, NULL),
+    
+    -- Thuộc Order 3 (Item 2)
+    (3, 2, 'Cơm Gà Xối Mỡ', 80000.00, 1, 'Nước mắm nhiều'); 
+    
+-- 3. Thêm 2 Đánh giá (Reviews)
+INSERT INTO `reviews` 
+    (`order_id`, `rating`, `comment`)
 VALUES
--- Order 1
-('st-001', 'a1b2c3d4-e001-4001-aaaa-000000000001', 'PENDING', 'ACCEPTED', NOW() - INTERVAL 30 MINUTE),
-('st-002', 'a1b2c3d4-e001-4001-aaaa-000000000001', 'ACCEPTED', 'DELIVERING', NOW() - INTERVAL 15 MINUTE),
-('st-003', 'a1b2c3d4-e001-4001-aaaa-000000000001', 'DELIVERING', 'DELIVERED', NOW()),
-
--- Order 2
-('st-004', 'a1b2c3d4-e002-4001-aaaa-000000000002', 'PENDING', 'PREPARING', NOW() - INTERVAL 25 MINUTE),
-('st-005', 'a1b2c3d4-e002-4001-aaaa-000000000002', 'PREPARING', 'DELIVERING', NOW() - INTERVAL 10 MINUTE),
-('st-006', 'a1b2c3d4-e002-4001-aaaa-000000000002', 'DELIVERING', 'DELIVERING', NOW()),
-
--- Order 3
-('st-007', 'a1b2c3d4-e003-4001-aaaa-000000000003', 'PENDING', 'ACCEPTED', NOW() - INTERVAL 40 MINUTE),
-('st-008', 'a1b2c3d4-e003-4001-aaaa-000000000003', 'ACCEPTED', 'PREPARING', NOW() - INTERVAL 20 MINUTE),
-('st-009', 'a1b2c3d4-e003-4001-aaaa-000000000003', 'PREPARING', 'PREPARING', NOW());
-
+    (1, 5, 'Giao hàng nhanh và món ăn rất nóng!'), -- Đánh giá cho Order 1
+    (2, 4, 'Đồ ăn ổn, chờ giao hàng.'); -- Đánh giá cho Order 2
