@@ -3,6 +3,8 @@ import { Button, Card, Col, Row, Form, Input, Alert, message } from "antd";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { AxiosError } from "axios";
+import type { ErrorResponse } from "../types/ErrorResponse";
 
 // 1. ĐỊNH NGHĨA KIỂU DỮ LIỆU CHO FORM
 interface LoginFormData {
@@ -41,17 +43,23 @@ const LoginPage: React.FC = () => {
       // 3. SỬA "catch(err: any)" THÀNH "catch(err)"
       setLoading(false);
       // Bắt đầu kiểm tra kiểu của 'err' (kiểu unknown)
-      if (err instanceof Error) {
-        // Kiểm tra thông điệp lỗi cụ thể
-        if (err.message.includes("quyền truy cập")) {
-          setError(err.message);
+      if (err instanceof AxiosError && err.response) {
+        const status = err.response.status;
+        const backendMessage = (err.response.data as ErrorResponse).message;
+
+        if (status === 403) {
+          // <-- BẮT LỖI TÀI KHOẢN BỊ CẤM
+          setError(backendMessage); // Hiển thị "Tài khoản này đã bị cấm..."
+        } else if (status === 401) {
+          setError("Tài khoản này đã bị cấm.");
         } else {
-          // Các lỗi khác (sai pass, 401, 404...)
-          setError("Email hoặc mật khẩu không chính xác.");
+          // Lỗi 400 (Bad Request) - Lỗi mặc định cho sai mật khẩu/user không tồn tại
+          setError(
+            backendMessage || "Tên đăng nhập hoặc mật khẩu không chính xác."
+          );
         }
       } else {
-        // Trường hợp hiếm gặp
-        setError("Đã xảy ra lỗi không mong muốn.");
+        setError("Đã xảy ra lỗi mạng/server không mong muốn.");
       }
     }
   };

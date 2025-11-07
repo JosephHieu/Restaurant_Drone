@@ -12,6 +12,7 @@ import com.josephhieu.userservice.repository.UserRepository;
 import com.josephhieu.userservice.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -36,14 +37,22 @@ public class AuthService {
     private JwtTokenProvider tokenProvider;
 
     public String login(LoginRequest loginRequest) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        loginRequest.getEmail(),
-                        loginRequest.getPassword()
-                )
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        return tokenProvider.generateToken(authentication);
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.getEmail(),
+                            loginRequest.getPassword()
+                    )
+            );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            return tokenProvider.generateToken(authentication);
+        } catch (DisabledException ex) {
+            // === BẮT LỖI 1: TÀI KHOẢN BỊ CẤM/VÔ HIỆU HÓA ===
+            throw new IllegalStateException("Tài khoản này đã bị cấm hoặc chưa được kích hoạt.", ex);
+        } catch (Exception ex) {
+            // Bắt các lỗi chung khác (sai mật khẩu, user không tồn tại)
+            throw new RuntimeException("Tên đăng nhập hoặc mật khẩu không chính xác.", ex);
+        }
     }
 
     @Transactional
