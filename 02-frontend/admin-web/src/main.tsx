@@ -7,24 +7,36 @@ import {
 } from "react-router-dom";
 import "./index.css";
 
-// Import AuthProvider
-import { AuthProvider } from "./context/AuthContext";
-
-// Import "Người gác cổng"
+// 1. Import Auth (Đã đúng)
+import { AuthProvider } from "./context/AuthProvider";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// Import Layout và các trang
+// 2. Import Layout (Đã đúng)
 import MainLayout from "./MainLayout";
 import LoginPage from "./pages/LoginPage";
-import DashboardPage from "./pages/DashboardPage";
-import UserManagementPage from "./pages/UserManagementPage";
-import RestaurantManagementPage from "./pages/RestaurantManagementPage";
-import DroneManagementPage from "./pages/DroneManagementPage";
 
+// 3. Import các trang (Pages)
+import DashboardPage from "./pages/DashboardPage";
+
+// --- Trang của Admin ---
+import UserManagementPage from "./pages/UserManagementPage";
 import AddUserPage from "./pages/AddUserPage";
 import EditUserPage from "./pages/EditUserPage";
-import OrderManagementPage from "./pages/OrderManagement";
+import DroneManagementPage from "./pages/DroneManagementPage";
+import AdminRestaurantPage from "./pages/AdminRestaurantPage";
+import AdminOrderPage from "./pages/AdminOrderPage";
+import AdminRestaurantPendingPage from "./pages/AdminRestaurantPendingPage";
+import AdminRestaurantAddPage from "./pages/AdminRestaurantAddPage";
+import AdminRestaurantEditPage from "./pages/AdminRestaurantEditPage";
 
+import RestaurantOwnerEditPage from "./pages/RestaurantOwnerEditPage";
+
+// --- Trang của Chủ nhà hàng ---
+import OrderManagementPage from "./pages/OrderManagementPage";
+import ProfilePage from "./pages/ProfilePage";
+import MenuManagementPage from "./pages/MenuManagementPage";
+
+// 4. Định nghĩa Router
 const router = createBrowserRouter([
   {
     path: "/login",
@@ -32,46 +44,79 @@ const router = createBrowserRouter([
   },
   {
     path: "/",
-    // Bọc các trang admin bằng "Người gác cổng"
     element: <ProtectedRoute />,
     children: [
       {
-        // Khi mọi thứ OK, ProtectedRoute sẽ render <Outlet />
-        // React Router sẽ khớp <MainLayout /> vào <Outlet /> đó
         element: <MainLayout />,
         children: [
+          // Trang chủ chung
+          { index: true, element: <DashboardPage /> },
+
+          // === TUYẾN ĐƯỜNG CỦA ADMIN (USER) ===
           {
-            index: true,
-            element: <DashboardPage />,
+            path: "admin/users",
+            element: <Navigate to="/admin/users/list" replace />,
           },
           {
-            path: "restaurants",
-            element: <RestaurantManagementPage />,
+            path: "admin/users/list",
+            element: <UserManagementPage />,
           },
+          {
+            path: "admin/users/add",
+            element: <AddUserPage />,
+          },
+          {
+            path: "admin/users/edit/:userId",
+            element: <EditUserPage />,
+          },
+          {
+            path: "admin/drones",
+            element: <DroneManagementPage />,
+          },
+          {
+            path: "admin/orders",
+            element: <AdminOrderPage />,
+          },
+
+          // === TUYẾN ĐƯỜNG ADMIN (RESTAURANT) ===
+          {
+            path: "admin/restaurants", // Trang gốc
+            element: <Navigate to="/admin/restaurants/list" replace />, // Chuyển về "Danh sách"
+          },
+          {
+            path: "admin/restaurants/list", // Trang danh sách
+            element: <AdminRestaurantPage />,
+          },
+          {
+            path: "admin/restaurants/pending", // Trang chờ duyệt
+            element: <AdminRestaurantPendingPage />,
+          },
+          {
+            path: "admin/restaurants/add", // Trang thêm mới
+            element: <AdminRestaurantAddPage />,
+          },
+          {
+            path: "admin/restaurants/edit/:restaurantId", // <-- :restaurantId là tham số
+            element: <AdminRestaurantEditPage />,
+          },
+          // ==========================================
+
+          // === TUYẾN ĐƯỜNG CỦA CHỦ NHÀ HÀNG ===
           {
             path: "orders",
             element: <OrderManagementPage />,
           },
           {
-            path: "users", // Khi người dùng đi đến /users
-            // Tự động chuyển hướng họ đến /users/list
-            element: <Navigate to="/users/list" replace />,
+            path: "menu",
+            element: <MenuManagementPage />,
           },
           {
-            path: "users/list",
-            element: <UserManagementPage />,
+            path: "profile",
+            element: <ProfilePage />,
           },
           {
-            path: "users/add", // <-- Đường dẫn mới
-            element: <AddUserPage />, // <-- Trang thêm user
-          },
-          {
-            path: "users/edit/:userId", // <-- :userId là tham số (param)
-            element: <EditUserPage />,
-          },
-          {
-            path: "drones",
-            element: <DroneManagementPage />,
+            path: "profile/edit/:restaurantId", // <-- Route Sửa của Owner
+            element: <RestaurantOwnerEditPage />,
           },
         ],
       },
@@ -79,9 +124,9 @@ const router = createBrowserRouter([
   },
 ]);
 
+// 5. Render App (Đã đúng)
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {/* "Bọc" toàn bộ ứng dụng bằng AuthProvider */}
     <AuthProvider>
       <RouterProvider router={router} />
     </AuthProvider>

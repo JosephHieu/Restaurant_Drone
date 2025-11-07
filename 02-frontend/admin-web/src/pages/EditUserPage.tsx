@@ -81,7 +81,7 @@ const EditUserPage: React.FC = () => {
     try {
       await api.put(`/api/users/${userId}`, values); // Gọi API PUT
       message.success("Cập nhật người dùng thành công!");
-      navigate("/users/list"); // Quay về trang danh sách
+      navigate("/admin/users/list"); // Quay về trang danh sách
     } catch (err) {
       setLoading(false);
       if (err instanceof AxiosError && err.response) {

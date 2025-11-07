@@ -3,46 +3,51 @@ server:
 
 spring:
   application:
-    # ??t tên ch? HOA ?? kh?p v?i Eureka Dashboard
     name: API-GATEWAY
 
   cloud:
     gateway:
       routes:
+        # USER SERVICE
         - id: user-service
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/api/users/**, /api/auth/**, /api/cart/**
+            - Path=/api/users/**,/api/auth/**,/api/cart/**
 
-
-        - id: restaurant-service
+        # RESTAURANT STATIC FILES
+        - id: restaurant-static-assets
           uri: lb://RESTAURANT-SERVICE
           predicates:
-            - Path=/api/restaurants/**
+            - Path=/api/restaurants/images/**
+          filters:
+            - RewritePath=/api/restaurants/images/(?<remaining>.*), /images/$\{remaining}
 
+        # RESTAURANT API
+        - id: restaurant-api
+          uri: lb://RESTAURANT-SERVICE
+          predicates:
+            - Path=/api/restaurants/**,/api/menu-items/**
+
+        # ORDER SERVICE
         - id: order-service
           uri: lb://ORDER-SERVICE
           predicates:
             - Path=/api/orders/**
 
+        # PAYMENT SERVICE
         - id: payment-service
           uri: lb://PAYMENT-SERVICE
           predicates:
             - Path=/api/payments/**
 
+        # DRONE SERVICE
         - id: drone-service
           uri: lb://DRONE-SERVICE
           predicates:
             - Path=/api/drones/**
 
-# C?u hình ?? Gateway t? ??ng ký v?i Eureka
+
 eureka:
   client:
     serviceUrl:
       defaultZone: http://localhost:8761/eureka/
-
-#logging:
-#  level:
-#    # B?t debug cho Gateway ?? xem nó ?ang ??nh tuy?n (route) th? nào
-#    org.springframework.cloud.gateway: DEBUG
-#    org.springframework: DEBUG

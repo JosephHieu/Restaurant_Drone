@@ -55,7 +55,7 @@ const AddUserPage: React.FC = () => {
 
       message.success("Thêm người dùng thành công!");
       form.resetFields(); // Xóa form
-      navigate("/users/list"); // Chuyển về trang danh sách
+      navigate("/admin/users/list"); // Chuyển về trang danh sách
     } catch (err) {
       // 3. SỬA "catch(err: any)" THÀNH "catch(err)"
 

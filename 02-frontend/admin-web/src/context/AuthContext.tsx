@@ -5,21 +5,9 @@ import type { User } from "../types"; // <-- DÙNG INTERFACE TỪ ĐÂY
 
 import api from "../services/api";
 
-// 2. XÓA BỎ HOÀN TOÀN KHỐI "interface User" CŨ Ở ĐÂY
-/* (KHỐI NÀY ĐÃ BỊ XÓA)
-  interface User {
-    userId: number;
-    fullName: string;
-    email: string;
-    role: {
-      name: string;
-    };
-  }
-*/
-
 // Định nghĩa những gì Context sẽ cung cấp
 interface AuthContextType {
-  user: User | null; // <-- Giờ sẽ dùng User đã import
+  user: User | null;
   token: string | null;
   isLoading: boolean;
   login: (token: string) => Promise<void>;
@@ -38,7 +26,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(
-    localStorage.getItem("admin_token")
+    // SỬA 1: Dùng key chung
+    localStorage.getItem("dashboard_token")
   );
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,7 +35,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   const logout = useCallback(() => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem("admin_token");
+    // SỬA 2: Dùng key chung
+    localStorage.removeItem("dashboard_token");
     if (api.defaults.headers.common) {
       api.defaults.headers.common["Authorization"] = undefined;
     }
@@ -63,11 +53,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
           const response = await api.get<User>("/api/users/me");
 
-          if (response.data.role.name === "ADMIN") {
+          // === SỬA 3: CHO PHÉP CẢ 2 VAI TRÒ ===
+          if (
+            response.data.role.name === "ADMIN" ||
+            response.data.role.name === "RESTAURANT_OWNER"
+          ) {
             setUser(response.data);
           } else {
+            // Nếu là "USER" hoặc vai trò khác -> Đăng xuất
             logout();
           }
+          // ===================================
         } catch (error) {
           console.error("Token không hợp lệ hoặc hết hạn:", error);
           logout();
@@ -82,7 +78,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   // Hàm Login
   const login = useCallback(
     async (newToken: string) => {
-      localStorage.setItem("admin_token", newToken);
+      // SỬA 4: Dùng key chung
+      localStorage.setItem("dashboard_token", newToken);
       if (api.defaults.headers.common) {
         api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
       }
@@ -90,13 +87,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
       try {
         const response = await api.get<User>("/api/users/me");
 
-        if (response.data.role.name === "ADMIN") {
+        // === SỬA 5: CHO PHÉP CẢ 2 VAI TRÒ ===
+        if (
+          response.data.role.name === "ADMIN" ||
+          response.data.role.name === "RESTAURANT_OWNER"
+        ) {
           setUser(response.data);
           setToken(newToken);
         } else {
           logout();
-          throw new Error("Bạn không có quyền truy cập trang quản trị.");
+          // SỬA 6: Sửa lại thông báo lỗi
+          throw new Error(
+            "Tài khoản của bạn không có quyền truy cập trang này."
+          );
         }
+        // ===================================
       } catch (error) {
         logout();
         throw error;

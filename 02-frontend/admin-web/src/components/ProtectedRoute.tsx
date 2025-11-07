@@ -13,7 +13,14 @@ const ProtectedRoute: React.FC = () => {
 
   // 2. Không có token HOẶC không có user (chưa login) -> Về trang login
   // 3. Có user nhưng vai trò không phải ADMIN -> Về trang login
-  if (!token || !user || user.role.name !== "ADMIN") {
+  if (
+    !token ||
+    !user ||
+    (user.role.name !== "ADMIN" && user.role.name !== "RESTAURANT_OWNER")
+  ) {
+    // Nếu không có token, không có user, HOẶC
+    // vai trò không phải ADMIN VÀ cũng không phải RESTAURANT_OWNER
+    // thì đá về trang login
     return <Navigate to="/login" replace />;
   }
 

@@ -1,37 +1,34 @@
 server:
-  port: 8081 # Cổng của UserService
+  port: 8081
 
 spring:
   application:
     name: USER-SERVICE
 
-  # Tắt banner
   main:
     banner-mode: off
 
-  # Kết nối tới database
   datasource:
     url: jdbc:mysql://localhost:3308/user_service
     username: root
-    password: root # Thay bằng mật khẩu của bạn
+    password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  # jpa
   jpa:
     hibernate:
-      ddl-auto: none # Vì chúng ta đã có script SQL
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
 
-# Cấu hình Eureka Client
 eureka:
+  instance:
+    hostname: localhost
   client:
     serviceUrl:
       defaultZone: http://localhost:8761/eureka
 
-# Cấu hình JWT
 jwt:
-  secret: hsXSXV5UGLVBCqob4jHK6FzXCJ8OUtZNSBwdvYXv5I8XiR2Ef9 # Key bí mật của bạn
+  secret: hsXSXV5UGLVBCqob4jHK6FzXCJ8OUtZNSBwdvYXv5I8XiR2Ef9
   expiration-ms: 86400000

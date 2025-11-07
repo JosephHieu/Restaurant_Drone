@@ -9,14 +9,23 @@ import {
   Tag,
   Popconfirm,
   message,
+  Modal,
 } from "antd";
 import type { TableProps } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import api from "../services/api";
 import type { User } from "../types"; // Import interface User
 import { useNavigate } from "react-router-dom";
+import { AxiosError } from "axios";
 
 const { Title } = Typography;
+
+// Kiểu cho lỗi trả về từ backend
+interface ErrorResponse {
+  message: string;
+  error: string;
+  status: number;
+}
 
 const UserManagementPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -46,24 +55,51 @@ const UserManagementPage: React.FC = () => {
     fetchUsers();
   }, []);
 
+  // Kiểu cho lỗi trả về từ backend
+
   // Xử lý Xóa
   const handleDelete = async (userId: number) => {
     try {
+      // 1. Vẫn gọi API xóa như bình thường
       await api.delete(`/api/users/${userId}`);
+
+      // 2. Chỉ chạy nếu thành công
       message.success("Xóa người dùng thành công!");
-      // Tải lại danh sách (bằng cách lọc thủ công, nhanh hơn gọi API)
       setUsers((prevUsers) =>
         prevUsers.filter((user) => user.userId !== userId)
       );
     } catch (err) {
-      setError("Lỗi khi xóa người dùng.");
-      console.log(err);
+      // 3. Bắt lỗi
+
+      console.error(err);
+      let errorMessage = "Đã xảy ra lỗi không mong muốn khi xóa.";
+
+      // 4. Kiểm tra nếu đây là lỗi từ backend
+      if (err instanceof AxiosError && err.response) {
+        const errorData = err.response.data as ErrorResponse;
+        errorMessage = errorData.message || errorMessage; // Lấy thông báo từ backend
+
+        // 5. Kiểm tra nếu đây là lỗi "Xung đột nghiệp vụ" (409)
+        if (err.response.status === 409) {
+          // 6. HIỂN THỊ THÔNG BÁO "ĐẸP"
+          Modal.error({
+            title: "Không thể xóa",
+            // Hiển thị chính xác thông báo từ backend
+            content: errorMessage,
+            okText: "Đã hiểu",
+          });
+          return; // Dừng, không làm gì thêm
+        }
+      }
+
+      // Nếu là lỗi khác (401, 500...), hiển thị Alert đỏ
+      setError(errorMessage);
     }
   };
 
   // 4. HÀM MỚI ĐỂ SỬA
   const handleEdit = (userId: number) => {
-    navigate(`/users/edit/${userId}`); // Chuyển đến trang Sửa
+    navigate(`/admin/users/edit/${userId}`); // Chuyển đến trang Sửa
   };
 
   // Định nghĩa các cột cho bảng

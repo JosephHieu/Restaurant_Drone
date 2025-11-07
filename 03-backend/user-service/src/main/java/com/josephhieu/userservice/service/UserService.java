@@ -1,5 +1,6 @@
 package com.josephhieu.userservice.service;
 
+import com.josephhieu.userservice.client.RestaurantClient;
 import com.josephhieu.userservice.dto.request.AdminCreateUserRequest;
 import com.josephhieu.userservice.dto.request.AdminUpdateUserRequest;
 import com.josephhieu.userservice.entity.Cart;
@@ -13,6 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +34,9 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private RestaurantClient  restaurantClient; // <-- Tiêm (Inject) Feign Client
 
     /**
      * Dùng cho API: GET /api/users/me
@@ -83,11 +90,26 @@ public class UserService {
      */
     @Transactional
     public void deleteUser(Integer id) {
-        // 1. Tìm và xóa CART của user trước
+        // Lấy token "Bearer ..." từ request của Admin
+        String token = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
+                .getRequest().getHeader("Authorization");
+
+        // Gọi API sang restaurant-service
+        boolean ownsRestaurant = restaurantClient.checkUserOwnership(id, token);
+
+        if (ownsRestaurant) {
+            // Nếu là chủ, từ chối xóa
+            throw new IllegalStateException(
+                    "Không thể xóa user. Người này vẫn đang sở hữu nhà hàng."
+            );
+        }
+        // ===============================
+
+        // Tìm và xóa CART
         Optional<Cart> cart = cartRepository.findByUser_UserId(id);
         cart.ifPresent(cartRepository::delete);
 
-        // 2. Bây giờ mới xóa USER
+        // Xóa USER
         userRepository.deleteById(id);
     }
 
