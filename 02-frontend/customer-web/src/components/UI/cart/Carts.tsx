@@ -1,8 +1,9 @@
 import { ListGroup } from "reactstrap";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import CartItem from "./CartItem";
 import { useDispatch, useSelector } from "react-redux";
 import { cartUiActions } from "../../../store/shopping-cart/cartUiSlice";
+import { formatVND } from "../../../utils/currencyUtils";
 
 import "../../../styles/shopping-cart.css";
 
@@ -28,6 +29,7 @@ interface RootState {
 }
 
 const Carts = () => {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const cartProducts = useSelector((state: RootState) => state.cart.cartItems);
   const totalAmount = useSelector((state: RootState) => state.cart.totalAmount);
@@ -35,6 +37,12 @@ const Carts = () => {
   const toggleCart = () => {
     dispatch(cartUiActions.toggle());
   };
+
+  const handleGoToCart = () => {
+    toggleCart();
+    navigate('/cart');
+  };
+
   return (
     <div className="cart__container" onClick={toggleCart}>
       <ListGroup onClick={(event) => event.stopPropagation()} className="cart">
@@ -56,12 +64,10 @@ const Carts = () => {
 
         <div className="cart__bottom d-flex align-items-center justify-content-between">
           <h6>
-            Tổng tiền : <span>{totalAmount} 000.VNĐ</span>
+            Tổng tiền : <span>{formatVND(totalAmount)}</span>
           </h6>
-          <button>
-            <Link to="/checkout" onClick={toggleCart}>
-              Thanh toán
-            </Link>
+          <button onClick={handleGoToCart}>
+            Đặt hàng
           </button>
         </div>
       </ListGroup>

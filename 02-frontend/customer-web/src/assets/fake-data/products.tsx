@@ -39,7 +39,7 @@ const products = [
   {
     id: "02",
     title: "Vegetarian Pizza",
-    price: 115.0,
+    price: 250000,
     image01: product_02_image_01,
     image02: product_02_image_02,
     image03: product_02_image_03,
@@ -51,7 +51,7 @@ const products = [
   {
     id: "03",
     title: "Double Cheese Margherita",
-    price: 110.0,
+    price: 200000,
     image01: product_03_image_01,
     image02: product_03_image_02,
     image03: product_03_image_03,
@@ -63,7 +63,7 @@ const products = [
   {
     id: "04",
     title: "Maxican Green Wave",
-    price: 110.0,
+    price: 200000,
     image01: product_04_image_01,
     image02: product_04_image_02,
     image03: product_04_image_03,
@@ -98,7 +98,7 @@ const products = [
   {
     id: "07",
     title: "Seafood Pizza",
-    price: 115.0,
+    price: 250000,
     image01: product_02_image_02,
     image02: product_02_image_01,
     image03: product_02_image_03,
@@ -110,7 +110,7 @@ const products = [
   {
     id: "08",
     title: "Thin Cheese Pizza",
-    price: 110.0,
+    price: 200000,
     image01: product_03_image_02,
     image02: product_03_image_01,
     image03: product_03_image_03,
@@ -122,7 +122,7 @@ const products = [
   {
     id: "09",
     title: "Pizza With Mushroom",
-    price: 110.0,
+    price: 200000,
     image01: product_04_image_02,
     image02: product_04_image_01,
     image03: product_04_image_03,

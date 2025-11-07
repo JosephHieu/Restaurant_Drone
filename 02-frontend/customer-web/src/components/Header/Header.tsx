@@ -1,15 +1,24 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container } from "reactstrap";
 import logo from "../../assets/images/res-logo.png";
 import { NavLink } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { cartUiActions } from "../../store/shopping-cart/cartUiSlice";
-import "../../styles/Header.css"
+import { logout } from "../../store/userSlice";
+import LoginModal from "../UI/modal/LoginModal";
+import RegisterModal from "../UI/modal/RegisterModal";
+import "../../styles/Header.css";
+import "../../styles/login-modal.css";
 
 interface RootState {
   cart: {
     totalQuantity: number;
+  };
+  user: {
+    username: string;
+    email: string;
+    isLoggedIn: boolean;
   };
 }
 
@@ -32,7 +41,31 @@ const Header = () => {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLElement | null>(null);
   const totalQuantity = useSelector((state: RootState) => state.cart.totalQuantity);
+  const user = useSelector((state: RootState) => state.user);
   const dispatch = useDispatch();
+  
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const toggleLoginModal = () => setIsLoginModalOpen(!isLoginModalOpen);
+  const toggleRegisterModal = () => setIsRegisterModalOpen(!isRegisterModalOpen);
+  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
+
+  const switchToRegister = () => {
+    setIsLoginModalOpen(false);
+    setIsRegisterModalOpen(true);
+  };
+
+  const switchToLogin = () => {
+    setIsRegisterModalOpen(false);
+    setIsLoginModalOpen(true);
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+    setIsDropdownOpen(false);
+  };
 
   const toggleMenu = () => {
     if (menuRef.current) {
@@ -104,12 +137,37 @@ const Header = () => {
               <span className="cart__badge">{totalQuantity}</span>
             </span>
             
+            {user.isLoggedIn ? (
+              <div className="user-dropdown">
+                <div className="user-info" onClick={toggleDropdown}>
+                  <i className="ri-user-line"></i>
+                  <span className="user-name">{user.username}</span>
+                  <i className="ri-arrow-down-s-line"></i>
+                </div>
+                {isDropdownOpen && (
+                  <div className="dropdown-menu-custom">
+                    <div className="dropdown-item-custom" onClick={handleLogout}>
+                      <i className="ri-logout-box-line"></i>
+                      <span>Đăng xuất</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <span className="user__icon" onClick={toggleLoginModal} style={{ cursor: 'pointer' }}>
+                <i className="ri-user-line"></i>
+              </span>
+            )}
+            
             <span className="mobile__menu" onClick={toggleMenu}>
               <i className="ri-menu-line"></i>
             </span>
           </div>
         </div>
       </Container>
+      
+      <LoginModal isOpen={isLoginModalOpen} toggle={toggleLoginModal} switchToRegister={switchToRegister} />
+      <RegisterModal isOpen={isRegisterModalOpen} toggle={toggleRegisterModal} switchToLogin={switchToLogin} />
     </header>
   );
 };

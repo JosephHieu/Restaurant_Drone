@@ -6,6 +6,7 @@ import "../../../styles/cart-item.css";
 
 import { useDispatch } from "react-redux";
 import { cartActions } from "../../../store/shopping-cart/cartSlice";
+import { formatVND } from "../../../utils/currencyUtils";
 
 interface CartItemProps {
   item: {
@@ -63,7 +64,7 @@ const CartItem = (props: CartItemProps) => {
           <div>
             <h6 className="cart__product-title">{title}</h6>
             <p className=" d-flex align-items-center gap-5 cart__product-price">
-              {quantity}x <span>{price} 000.VNĐ</span>
+              {quantity}x <span>{formatVND(price)}</span>
             </p>
             <div className="d-flex flex-column">
             {

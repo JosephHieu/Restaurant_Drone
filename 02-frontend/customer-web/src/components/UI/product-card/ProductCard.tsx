@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import { cartActions } from "../../../store/shopping-cart/cartSlice";
 
 import { Link } from "react-router-dom";
+import { formatVND } from "../../../utils/currencyUtils";
 
 interface ExtraIngredient {
   id: string;
@@ -46,7 +47,7 @@ const ProductCard = (props: ProductCardProps) => {
         </h5>
       </div>
       <div className="d-flex flex-column align-items-center justify-content-between">
-        <span className="product__price mb-2">{price} 000.VNĐ </span>
+        <span className="product__price mb-2">{formatVND(price)}</span>
         <button className="addTOCART__btn" onClick={addToCart}>
           Thêm vào giỏ hàng
         </button>
