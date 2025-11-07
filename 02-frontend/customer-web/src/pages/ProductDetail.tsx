@@ -8,6 +8,7 @@ import ExtraIngredient from '../components/ExtraIngredient'
 import { useDispatch } from "react-redux";
 import { cartActions } from "../store/shopping-cart/cartSlice";
 import { useSelector } from "react-redux";
+import { formatVND } from "../utils/currencyUtils";
 
 import "../styles/product-details.css";
 import "../styles/product-card.css";
@@ -150,7 +151,7 @@ const ProductDetails = () => {
                 <h2 className="product__title mb-3">{title}</h2>
                 <p className="product__price">
                   {" "}
-                  Price: <span>${price}</span>
+                  Price: <span>{formatVND(price)}</span>
                 </p>
                 <p className="category mb-5">
                   Category: <span>{category}</span>

@@ -16,6 +16,18 @@ interface CartItem {
   extraIngredients: ExtraIngredient[];
 }
 
+// Version key để reset localStorage khi cấu trúc dữ liệu thay đổi
+const CART_VERSION = "v2_vnd"; // Thay đổi version khi cần reset
+const savedVersion = localStorage.getItem("cartVersion");
+
+// Reset localStorage nếu version không khớp
+if (savedVersion !== CART_VERSION) {
+  localStorage.removeItem("cartItems");
+  localStorage.removeItem("totalAmount");
+  localStorage.removeItem("totalQuantity");
+  localStorage.setItem("cartVersion", CART_VERSION);
+}
+
 const items: CartItem[] =
   localStorage.getItem("cartItems") !== null
     ? JSON.parse(localStorage.getItem("cartItems") as string)
