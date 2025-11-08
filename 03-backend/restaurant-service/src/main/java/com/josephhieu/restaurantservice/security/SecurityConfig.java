@@ -61,8 +61,7 @@ public class SecurityConfig {
                         // 2. Các API CÔNG KHAI (cho Khách hàng xem)
                         // (Phải đặt SAU các quy tắc bảo vệ ở trên)
                         .requestMatchers(HttpMethod.GET, "/api/restaurants/**").permitAll() // Cho khách xem DS nhà hàng
-                        .requestMatchers(HttpMethod.GET, "/api/menu-items/**").permitAll() // Cho khách xem món ăn
-
+                        .requestMatchers(HttpMethod.GET, "/api/menu-items/**", "/api/menu-items/public/all").permitAll()
                         // 3. Cho phép Eureka
                         .requestMatchers("/eureka/**").permitAll()
 

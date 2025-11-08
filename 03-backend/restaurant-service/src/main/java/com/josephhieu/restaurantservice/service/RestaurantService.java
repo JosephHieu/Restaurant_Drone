@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class RestaurantService {
@@ -151,15 +152,29 @@ public class RestaurantService {
      * API: POST /api/restaurants/{id}/menu-items
      * Thêm món ăn mới vào nhà hàng
      */
+    /**
+     * API: POST /api/restaurants/{id}/menu-items
+     * Thêm món ăn mới vào nhà hàng
+     */
     @Transactional
     public MenuItem createMenuItem(Integer restaurantId, CreateMenuItemRequest request, CustomUserDetails user) {
         Restaurant restaurant = getRestaurantById(restaurantId);
+        checkOwnership(user, restaurant); // Kiểm tra quyền (đã đúng)
 
-        // Bảo mật: Kiểm tra xem user có phải chủ nhà hàng hoặc Admin không
-        checkOwnership(user, restaurant);
+        // === THÊM LOGIC KIỂM TRA TRÙNG LẶP ===
+        // 1. Kiểm tra xem tên món (request.getName()) đã tồn tại trong nhà hàng này chưa
+        Optional<MenuItem> existingItem = menuItemRepository
+                .findByRestaurant_RestaurantIdAndNameIgnoreCase(restaurantId, request.getName());
 
+        if (existingItem.isPresent()) {
+            // 2. Nếu tìm thấy, ném lỗi 409 Conflict
+            throw new IllegalStateException("Lỗi: Tên món ăn này đã tồn tại trong nhà hàng của bạn.");
+        }
+        // ======================================
+
+        // 3. Nếu không trùng, tiếp tục tạo món ăn
         MenuItem menuItem = modelMapper.map(request, MenuItem.class);
-        menuItem.setRestaurant(restaurant); // Liên kết với nhà hàng
+        menuItem.setRestaurant(restaurant);
 
         return menuItemRepository.save(menuItem);
     }
@@ -305,4 +320,12 @@ public class RestaurantService {
         return menuItemRepository.findAllByRestaurant_RestaurantId(restaurant.getRestaurantId());
     }
 
+    /**
+     * API: GET /api/menu-items/public/all
+     * Lấy tất cả món ăn từ các nhà hàng đang 'open'
+     */
+    public List<MenuItem> getAllPublicMenuItems() {
+        // Gọi hàm repo mới, chỉ lấy món từ các quán "open"
+        return menuItemRepository.findAllByRestaurant_Status("open");
+    }
 }

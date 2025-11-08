@@ -11,6 +11,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/menu-items")
 public class MenuItemController {
@@ -44,5 +46,13 @@ public class MenuItemController {
             @AuthenticationPrincipal CustomUserDetails user) {
         restaurantService.deleteMenuItem(itemId, user);
         return ResponseEntity.ok("Menu item deleted successfully.");
+    }
+
+    /**
+     * API PUBLIC: Lấy tất cả món ăn (cho trang chủ client-web)
+     */
+    @GetMapping("/public/all")
+    public ResponseEntity<List<MenuItem>> getAllPublicMenuItems() {
+        return ResponseEntity.ok(restaurantService.getAllPublicMenuItems());
     }
 }

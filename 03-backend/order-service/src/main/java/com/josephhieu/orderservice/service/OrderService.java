@@ -5,9 +5,9 @@ import com.josephhieu.orderservice.client.UserClient;
 import com.josephhieu.orderservice.client.dto.CartDto;
 import com.josephhieu.orderservice.client.dto.CartItemDto;
 import com.josephhieu.orderservice.client.dto.MenuItemDto;
+import com.josephhieu.orderservice.dto.OrderRequest; // Sẽ tạo ở bước sau
 import com.josephhieu.orderservice.entity.Order;
 import com.josephhieu.orderservice.entity.OrderItem;
-import com.josephhieu.orderservice.exception.ResourceNotFoundException;
 import com.josephhieu.orderservice.repository.OrderRepository;
 import com.josephhieu.orderservice.security.CustomUserDetails;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,22 +19,21 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class OrderService {
 
     @Autowired
     private OrderRepository orderRepository;
-
     @Autowired
     private UserClient userClient;
-
     @Autowired
     private RestaurantClient restaurantClient;
 
-    // Hàm tiện ích lấy token từ request (Bắt buộc cho Feign)
+    // Hàm tiện ích lấy token "Bearer ..." từ request
     private String getAuthHeader() {
-        return ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
+        return ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes()))
                 .getRequest().getHeader("Authorization");
     }
 
@@ -43,28 +42,30 @@ public class OrderService {
      * Tạo đơn hàng mới từ giỏ hàng
      */
     @Transactional
-    public Order createOrder(CustomUserDetails user) {
+    public Order createOrder(CustomUserDetails user, OrderRequest orderRequest) {
         String authHeader = getAuthHeader();
 
-        // 1. GIAO TIẾP VỚI USER-SERVICE: Lấy giỏ hàng
+        // 1. GỌI USER-SERVICE: Lấy giỏ hàng
         CartDto cart = userClient.getCart(authHeader);
 
         if (cart.getCartItems() == null || cart.getCartItems().isEmpty()) {
             throw new IllegalStateException("Giỏ hàng rỗng. Không thể đặt hàng.");
         }
 
-        // 2. KHỞI TẠO ĐƠN HÀNG VÀ TÍNH TỔNG TIỀN
+        // 2. KHỞI TẠO ĐƠN HÀNG
         Order order = new Order();
         order.setCustomerId(user.getId());
         order.setRestaurantId(cart.getRestaurantId());
-        order.setDeliveryAddress("Địa chỉ giao hàng mặc định"); // TODO: Lấy từ User Details
-        order.setStatus("PENDING");
-        order.setPaymentMethod("COD"); // TODO: Lấy từ request frontend
+
+        // Lấy địa chỉ và phương thức thanh toán từ frontend
+        order.setDeliveryAddress(orderRequest.getDeliveryAddress());
+        order.setPaymentMethod(orderRequest.getPaymentMethod());
+        order.setStatus("PENDING"); // Trạng thái chờ (VNPAY/COD)
 
         BigDecimal grandTotal = BigDecimal.ZERO;
         List<OrderItem> orderItems = new ArrayList<>();
 
-        // 3. GIAO TIẾP VỚI RESTAURANT-SERVICE: Lấy snapshot giá
+        // 3. GỌI RESTAURANT-SERVICE: Lấy snapshot giá
         for (CartItemDto cartItem : cart.getCartItems()) {
             // Lấy chi tiết món ăn (giá, tên)
             MenuItemDto itemDetails = restaurantClient.getMenuItemById(cartItem.getItemId());
@@ -87,12 +88,14 @@ public class OrderService {
 
         // 4. LƯU GIAO DỊCH
         order.setTotalPrice(grandTotal);
-        order.setOrderItems(orderItems); // Hibernate sẽ tự động lưu items
+        order.setOrderItems(orderItems);
         Order savedOrder = orderRepository.save(order);
 
-        // 5. GIAO TIẾP VỚI USER-SERVICE: Xóa giỏ hàng
+        // 5. GỌI USER-SERVICE: Xóa giỏ hàng
         userClient.clearCart(authHeader);
 
         return savedOrder;
     }
+
+    // (Bạn có thể thêm các hàm GET /api/orders/my-history ở đây)
 }

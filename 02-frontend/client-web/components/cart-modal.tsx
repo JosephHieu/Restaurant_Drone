@@ -1,48 +1,56 @@
-"use client"
+"use client";
 
-import { X, Plus, Minus, Trash2, ShoppingCart } from "lucide-react"
-import { useCart } from "@/context/cart-context"
-import { useAuth } from "@/context/auth-context"
+import { X, Plus, Minus, Trash2, ShoppingCart } from "lucide-react";
+import { useCart } from "@/context/cart-context";
+import { useAuth } from "@/context/auth-context";
 
 interface CartModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onOpenLogin: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  onOpenLogin: () => void;
 }
 
-export default function CartModal({ isOpen, onClose, onOpenLogin }: CartModalProps) {
-  const { cartItems, updateQuantity, removeFromCart } = useCart()
-  const { isAuthenticated } = useAuth()
+export default function CartModal({
+  isOpen,
+  onClose,
+  onOpenLogin,
+}: CartModalProps) {
+  const { cartItems, updateQuantity, removeFromCart } = useCart();
+  const { isAuthenticated } = useAuth();
 
   const calculateTotal = () => {
     return cartItems.reduce((total, item) => {
-      const discountedPrice = item.price * (1 - (item.discount || 0) / 100)
-      return total + discountedPrice * item.quantity
-    }, 0)
-  }
+      const discountedPrice = item.price * (1 - (item.discount || 0) / 100);
+      return total + discountedPrice * item.quantity;
+    }, 0);
+  };
 
   const calculateSavings = () => {
     return cartItems.reduce((savings, item) => {
-      const discountAmount = ((item.price * (item.discount || 0)) / 100) * item.quantity
-      return savings + discountAmount
-    }, 0)
-  }
+      const discountAmount =
+        ((item.price * (item.discount || 0)) / 100) * item.quantity;
+      return savings + discountAmount;
+    }, 0);
+  };
 
   const handleCheckout = () => {
     if (!isAuthenticated) {
-      onOpenLogin()
-      onClose()
+      onOpenLogin();
+      onClose();
     } else {
       // Proceed with checkout
-      alert("Tiến hành thanh toán")
+      alert("Tiến hành thanh toán");
     }
-  }
+  };
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={onClose} />
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+        onClick={onClose}
+      />
 
       <div className="fixed inset-0 z-50 overflow-hidden">
         {/* Modal */}
@@ -50,7 +58,10 @@ export default function CartModal({ isOpen, onClose, onOpenLogin }: CartModalPro
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 p-4">
             <h2 className="text-xl font-bold">Giỏ hàng của bạn</h2>
-            <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg transition">
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-gray-100 rounded-lg transition"
+            >
               <X size={24} />
             </button>
           </div>
@@ -64,9 +75,13 @@ export default function CartModal({ isOpen, onClose, onOpenLogin }: CartModalPro
               </div>
             ) : (
               cartItems.map((item) => {
-                const discountedPrice = item.price * (1 - (item.discount || 0) / 100)
+                const discountedPrice =
+                  item.price * (1 - (item.discount || 0) / 100);
                 return (
-                  <div key={item.id} className="flex gap-3 border border-gray-200 rounded-lg p-3">
+                  <div
+                    key={item.id}
+                    className="flex gap-3 border border-gray-200 rounded-lg p-3"
+                  >
                     {/* Image */}
                     <img
                       src={item.image || "/placeholder.svg"}
@@ -80,25 +95,37 @@ export default function CartModal({ isOpen, onClose, onOpenLogin }: CartModalPro
                       <div className="flex items-center gap-2 mt-1">
                         {item.discount ? (
                           <>
-                            <span className="text-red-500 font-bold">{discountedPrice.toLocaleString()}đ</span>
-                            <span className="text-xs text-gray-400 line-through">{item.price.toLocaleString()}đ</span>
+                            <span className="text-red-500 font-bold">
+                              {discountedPrice.toLocaleString()}đ
+                            </span>
+                            <span className="text-xs text-gray-400 line-through">
+                              {item.price.toLocaleString()}đ
+                            </span>
                           </>
                         ) : (
-                          <span className="text-red-500 font-bold">{item.price.toLocaleString()}đ</span>
+                          <span className="text-red-500 font-bold">
+                            {item.price.toLocaleString()}đ
+                          </span>
                         )}
                       </div>
 
                       {/* Quantity Controls */}
                       <div className="flex items-center gap-2 mt-2">
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          onClick={() =>
+                            updateQuantity(item.id, item.quantity - 1)
+                          }
                           className="p-1 hover:bg-gray-100 rounded transition"
                         >
                           <Minus size={16} />
                         </button>
-                        <span className="w-6 text-center font-semibold">{item.quantity}</span>
+                        <span className="w-6 text-center font-semibold">
+                          {item.quantity}
+                        </span>
                         <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          onClick={() =>
+                            updateQuantity(item.id, item.quantity + 1)
+                          }
                           className="p-1 hover:bg-gray-100 rounded transition"
                         >
                           <Plus size={16} />
@@ -112,7 +139,7 @@ export default function CartModal({ isOpen, onClose, onOpenLogin }: CartModalPro
                       </div>
                     </div>
                   </div>
-                )
+                );
               })
             )}
           </div>
@@ -124,14 +151,18 @@ export default function CartModal({ isOpen, onClose, onOpenLogin }: CartModalPro
               {calculateSavings() > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Tiết kiệm:</span>
-                  <span className="font-semibold">{calculateSavings().toLocaleString()}đ</span>
+                  <span className="font-semibold">
+                    {calculateSavings().toLocaleString()}đ
+                  </span>
                 </div>
               )}
 
               {/* Total */}
               <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-3">
                 <span>Tổng cộng:</span>
-                <span className="text-red-500">{calculateTotal().toLocaleString()}đ</span>
+                <span className="text-red-500">
+                  {calculateTotal().toLocaleString()}đ
+                </span>
               </div>
 
               {/* Checkout Button */}
@@ -146,5 +177,5 @@ export default function CartModal({ isOpen, onClose, onOpenLogin }: CartModalPro
         </div>
       </div>
     </>
-  )
+  );
 }

@@ -3,6 +3,8 @@ package com.josephhieu.restaurantservice.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -15,7 +17,7 @@ public class MenuItem {
 
     private String name;
     private String description;
-    private Double price;
+    private BigDecimal price;
     private String imageUri;
     private boolean isAvailable;
 

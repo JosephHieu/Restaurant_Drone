@@ -1,63 +1,43 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { ChevronRight } from "lucide-react"
-import ProductCard from "./product-card"
-import AllProductsModal from "./all-products-modal"
+import { useState, useEffect } from "react"; // <-- THÊM useEffect
+import { ChevronRight } from "lucide-react";
+import ProductCard from "./product-card";
+import AllProductsModal from "./all-products-modal";
+import api from "@/services/api"; // <-- IMPORT API
+import type { MenuItem } from "@/types"; // <-- IMPORT KIỂU THẬT
 
-const featuredProducts = [
-  {
-    id: 1,
-    name: "Cơm gà xối mỡ",
-    image: "/c-m-g--x-i-m-.jpg",
-    discount: "-10%",
-    price: 45000,
-    originalPrice: 50000,
-    description: "Cơm gà xối mỡ thơm ngon, gà mềm, cơm dẻo. Được nấu theo công thức truyền thống với gia vị đặc biệt.",
-    rating: 4.8,
-    reviews: 256,
-    restaurant: "Cơm Tấm Sài Gòn",
-  },
-  {
-    id: 2,
-    name: "Bún bò Huế",
-    image: "/b-n-b--hu-.jpg",
-    discount: null,
-    price: 55000,
-    originalPrice: 55000,
-    description: "Bún bò Huế nổi tiếng với nước dùng đậm đà, bò mềm, bún tươi. Ăn kèm rau sống và chả cua.",
-    rating: 4.9,
-    reviews: 312,
-    restaurant: "Bún Bò Huế Ngon",
-  },
-  {
-    id: 3,
-    name: "Phở bò tái",
-    image: "/ph--b--t-i.jpg",
-    discount: null,
-    price: 50000,
-    originalPrice: 50000,
-    description: "Phở bò tái nóng hổi với nước dùng được nấu từ xương bò suốt 12 tiếng, bò tái mềm, bánh phở mềm.",
-    rating: 4.7,
-    reviews: 189,
-    restaurant: "Phở Gia Truyền",
-  },
-  {
-    id: 4,
-    name: "Cơm sườn bì chả",
-    image: "/c-m-s--n-b--ch-.jpg",
-    discount: "-16%",
-    price: 42000,
-    originalPrice: 50000,
-    description: "Cơm sườn bì chả với sườn nướng vàng ươm, bì thơm, chả cua ngon. Ăn kèm nước mắm chua ngọt.",
-    rating: 4.6,
-    reviews: 198,
-    restaurant: "Cơm Sườn Bì Chả",
-  },
-]
+// XÓA BỎ MẢNG "featuredProducts" (DỮ LIỆU GIẢ)
 
 export default function FoodSection() {
-  const [isAllProductsOpen, setIsAllProductsOpen] = useState(false)
+  const [isAllProductsOpen, setIsAllProductsOpen] = useState(false);
+
+  // TẠO STATE MỚI ĐỂ LƯU DỮ LIỆU THẬT
+  const [featuredProducts, setFeaturedProducts] = useState<MenuItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // GỌI API KHI TẢI TRANG
+  useEffect(() => {
+    const fetchFeaturedProducts = async () => {
+      setIsLoading(true);
+      try {
+        // Gọi API mới tạo (lấy TẤT CẢ món)
+        const response = await api.get<MenuItem[]>(
+          "/api/menu-items/public/all"
+        );
+
+        // Chỉ lấy 4 món đầu tiên để làm "Nổi bật"
+        setFeaturedProducts(response.data.slice(0, 8));
+      } catch (err) {
+        console.error("Lỗi khi tải món ăn nổi bật:", err);
+        setError("Không thể tải món ăn.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchFeaturedProducts();
+  }, []); // Chạy 1 lần khi tải
 
   return (
     <>
@@ -74,14 +54,26 @@ export default function FoodSection() {
             Xem tất cả <ChevronRight size={20} />
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {featuredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+
+        {/* XỬ LÝ LOADING VÀ LỖI */}
+        {isLoading ? (
+          <div className="text-center p-10">Đang tải...</div>
+        ) : error ? (
+          <div className="text-center p-10 text-red-500">{error}</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* DÙNG DỮ LIỆU THẬT TỪ STATE */}
+            {featuredProducts.map((product) => (
+              <ProductCard key={product.itemId} product={product} />
+            ))}
+          </div>
+        )}
       </section>
 
-      <AllProductsModal isOpen={isAllProductsOpen} onClose={() => setIsAllProductsOpen(false)} />
+      <AllProductsModal
+        isOpen={isAllProductsOpen}
+        onClose={() => setIsAllProductsOpen(false)}
+      />
     </>
-  )
+  );
 }

@@ -22,9 +22,14 @@ import type { TableProps } from "antd";
 import { EditOutlined, DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import api from "../services/api";
 import type { MenuItem, Restaurant } from "../types";
+import { AxiosError } from "axios";
 
 const { Title } = Typography;
 const { Option } = Select;
+
+interface ErrorResponse {
+  message: string;
+}
 
 // Kiểu dữ liệu cho Form (phải khớp với DTO backend)
 interface MenuItemFormData {
@@ -209,13 +214,21 @@ const MenuManagementPage: React.FC = () => {
       }
 
       setIsModalOpen(false);
-      setSelectedFile(null); // Reset file sau khi thành công
+      // setSelectedFile(null); // Reset file sau khi thành công
       fetchMenu();
     } catch (err) {
-      message.error("Lỗi khi lưu món ăn hoặc upload ảnh.");
+      setLoading(false); // Dừng loading khi có lỗi
+
+      // Xử lý lỗi "đẹp"
+      if (err instanceof AxiosError && err.response) {
+        const errorData = err.response.data as ErrorResponse;
+
+        // Hiển thị lỗi từ backend (ví dụ: "Lỗi: Tên món ăn này đã tồn tại...")
+        message.error(errorData.message || "Đã xảy ra lỗi");
+      } else {
+        message.error("Lỗi khi lưu món ăn hoặc upload ảnh.");
+      }
       console.error(err);
-    } finally {
-      setLoading(false);
     }
   };
 

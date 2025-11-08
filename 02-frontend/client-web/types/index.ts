@@ -1,27 +1,8 @@
-// Định nghĩa Role (khớp với backend)
-export interface Role {
-  roleId: number;
-  name: string;
-}
+// File này chỉ làm nhiệm vụ "gom" và "xuất" (export)
+// Nó không định nghĩa bất kỳ interface nào
 
-// Định nghĩa User (khớp với backend)
-export interface User {
-  userId: number;
-  fullName: string;
-  email: string;
-  phone: string;
-  address: string;
-  status: string;
-  role: Role;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Định nghĩa Lỗi (khớp với backend)
-export interface ErrorResponse {
-  timestamp: string;
-  status: number;
-  error: string;
-  message: string;
-  path: string;
-}
+export type * from "./user.interface";
+export type * from "./restaurant.interface";
+export type * from "./menu-item.interface";
+export type * from "./error.interface";
+// (Bạn có thể thêm các file khác như 'order.interface.ts' sau)
