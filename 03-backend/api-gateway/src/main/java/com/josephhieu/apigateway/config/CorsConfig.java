@@ -17,9 +17,8 @@ public class CorsConfig {
 
         // 1. Cho phép request từ 3 cổng frontend của bạn
         corsConfig.setAllowedOrigins(Arrays.asList(
-                "http://localhost:5173", // customer-web
                 "http://localhost:5174", // admin-web
-                "http://localhost:5175"  // restaurant-web
+                "http://localhost:3000" // client-web
         ));
 
         // 2. Cho phép tất cả các phương thức (POST, GET, PUT...)

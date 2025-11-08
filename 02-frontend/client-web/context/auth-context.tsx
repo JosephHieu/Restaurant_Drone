@@ -1,110 +1,131 @@
-"use client"
+"use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react"
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
+import api from "@/services/api"; // <-- Import file api.ts
+import type { User } from "@/types"; // <-- Import file types/index.ts
 
-export interface User {
-  email: string
-  name: string
-  phone?: string
-  address?: string
-}
-
+// 1. SỬA LẠI INTERFACE
 interface AuthContextType {
-  user: User | null
-  login: (email: string, password: string) => boolean
-  register: (email: string, password: string, name: string, phone: string) => boolean
-  logout: () => void
-  updateProfile: (data: { name?: string; phone?: string; address?: string; password?: string }) => boolean
-  isAuthenticated: boolean
+  user: User | null;
+  token: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (token: string) => Promise<void>; // <-- Sửa: Login bằng token
+  // Sửa: Hàm register này là async
+  register: (
+    email: string,
+    password: string,
+    name: string,
+    phone: string
+  ) => Promise<void>;
+  logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [registeredUsers, setRegisteredUsers] = useState<
-    Array<{ email: string; password: string; name: string; phone: string; address?: string }>
-  >([{ email: "hieu@gmail.com", password: "123456", name: "Hiệu", phone: "0123456789", address: "" }])
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const login = (email: string, password: string): boolean => {
-    const user = registeredUsers.find((u) => u.email === email && u.password === password)
-    if (user) {
-      setUser({
-        email: user.email,
-        name: user.name,
-        phone: user.phone,
-        address: user.address,
-      })
-      return true
+  // 2. TẠO HÀM LOGOUT
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem("client_token");
+    delete api.defaults.headers.common["Authorization"];
+  }, []);
+
+  // 3. KIỂM TRA TOKEN CŨ KHI TẢI TRANG
+  useEffect(() => {
+    const loadUserFromToken = async () => {
+      const storedToken = localStorage.getItem("client_token");
+      if (storedToken) {
+        try {
+          setToken(storedToken);
+          api.defaults.headers.common[
+            "Authorization"
+          ] = `Bearer ${storedToken}`;
+          const response = await api.get<User>("/api/users/me");
+          setUser(response.data);
+        } catch (e) {
+          logout();
+        }
+      }
+      setIsLoading(false);
+    };
+    loadUserFromToken();
+  }, [logout]);
+
+  // 4. HÀM LOGIN (Được gọi bởi Modal)
+  const login = async (newToken: string) => {
+    localStorage.setItem("client_token", newToken);
+    api.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
+    setToken(newToken);
+    try {
+      const response = await api.get<User>("/api/users/me");
+      setUser(response.data);
+    } catch (error) {
+      logout();
     }
-    return false
-  }
+  };
 
-  const register = (email: string, password: string, name: string, phone: string): boolean => {
-    // Check if email already exists
-    if (registeredUsers.some((u) => u.email === email)) {
-      return false
-    }
+  // 5. HÀM REGISTER "THẬT" (GỌI API)
+  const register = async (
+    email: string,
+    password: string,
+    name: string,
+    phone: string
+  ) => {
+    // 1. Gọi API /register (của user-service)
+    await api.post("/api/auth/register", {
+      email: email,
+      password: password,
+      fullName: name, // <-- Dùng tên thật
+      phone: phone, // <-- Dùng SĐT thật
+    });
 
-    // Add new user
-    setRegisteredUsers((prev) => [...prev, { email, password, name, phone, address: "" }])
-    setUser({
+    // 2. Tự động đăng nhập để lấy token
+    const loginResponse = await api.post("/api/auth/login", {
       email,
-      name,
-      phone,
-      address: "",
-    })
-    return true
-  }
+      password,
+    });
 
-  const updateProfile = (data: { name?: string; phone?: string; address?: string; password?: string }): boolean => {
-    if (!user) return false
+    // 3. Gọi hàm login ở trên để lưu token và user
+    await login(loginResponse.data.accessToken);
+  };
 
-    setRegisteredUsers((prev) =>
-      prev.map((u) =>
-        u.email === user.email
-          ? {
-              ...u,
-              name: data.name || u.name,
-              phone: data.phone || u.phone,
-              address: data.address || u.address,
-              password: data.password || u.password,
-            }
-          : u,
-      ),
-    )
-
-    setUser((prev) =>
-      prev
-        ? {
-            ...prev,
-            name: data.name || prev.name,
-            phone: data.phone || prev.phone,
-            address: data.address || prev.address,
-          }
-        : null,
-    )
-
-    return true
-  }
-
-  const logout = () => {
-    setUser(null)
-  }
-
-  const isAuthenticated = user !== null
+  const isAuthenticated = !!token;
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateProfile, isAuthenticated }}>
-      {children}
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isLoading,
+        isAuthenticated,
+        login,
+        register,
+        logout,
+      }}
+    >
+      {!isLoading && children}
     </AuthContext.Provider>
-  )
+  );
 }
 
+// 6. Hook useAuth (Giữ nguyên)
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
+  return context;
 }

@@ -57,8 +57,16 @@ public class AuthService {
 
     @Transactional
     public User register(RegisterRequest registerRequest) {
+        // 1. KIỂM TRA EMAIL TRÙNG
         if (userRepository.existsByEmail(registerRequest.getEmail())) {
-            throw new RuntimeException("Error: Email is already in use!");
+            // Ném lỗi 409 (Conflict)
+            throw new IllegalStateException("Lỗi: Email này đã được đăng ký.");
+        }
+
+        // 2. === THÊM KIỂM TRA SĐT TRÙNG ===
+        if (userRepository.existsByPhone(registerRequest.getPhone())) {
+            // Ném lỗi 409 (Conflict)
+            throw new IllegalStateException("Lỗi: Số điện thoại này đã được đăng ký.");
         }
 
         User user = new User();
