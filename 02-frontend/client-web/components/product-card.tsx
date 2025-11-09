@@ -2,21 +2,38 @@
 
 import { useState } from "react";
 import ProductDetailModal from "./product-detail-modal";
-import type { MenuItem } from "@/types"; // <-- 1. IMPORT INTERFACE THẬT
-import { Image } from "antd"; // <-- 2. DÙNG COMPONENT ẢNH TỐI ƯU
+import type { MenuItem } from "@/types"; // <-- Import thật
+import { Image } from "antd";
+import { Heart, ShoppingCart } from "lucide-react";
+import { useCart } from "@/context/cart-context"; // <-- Import hook thật
+import { message } from "antd"; // <-- Import message
 
-// 3. XÓA BỎ INTERFACE "Product" GIẢ LẬP
-
-// 4. TẠO HÀM TIỆN ÍCH XÂY DỰNG URL ẢNH
+// Hàm tiện ích xây dựng URL ảnh
 const getImageUrl = (imageUri: string | undefined): string => {
   if (!imageUri) return "https://via.placeholder.com/160?text=No+Image";
-  // URL này phải khớp với API Gateway
   return `http://localhost:8080/api/restaurants/images/${imageUri}`;
 };
 
-// 5. SỬA LẠI PROPS: Đổi "Product" thành "MenuItem"
-export default function ProductCard({ product }: { product: MenuItem }) {
+// Sửa Props: Dùng MenuItem
+interface ProductCardProps {
+  product: MenuItem;
+}
+
+export default function ProductCard({ product }: ProductCardProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const { addToCart } = useCart(); // <-- Lấy hàm thật
+
+  // === THÊM HÀM NÀY ĐỂ SỬA LỖI ===
+  // Xử lý khi nhấn nút "Thêm vào giỏ" (icon giỏ hàng)
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Ngăn modal chi tiết mở ra
+    try {
+      // Gọi hàm thật (truyền 2 tham số: MenuItem và số lượng)
+      addToCart(product, 1);
+    } catch (err) {
+      message.error("Lỗi khi thêm vào giỏ hàng");
+    }
+  };
 
   return (
     <>
@@ -25,37 +42,40 @@ export default function ProductCard({ product }: { product: MenuItem }) {
         className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
       >
         <div className="relative overflow-hidden bg-gray-100 h-40">
-          {/* 6. SỬA LẠI COMPONENT ẢNH VÀ TRƯỜNG DỮ LIỆU */}
           <Image
             src={getImageUrl(product.imageUri)}
             alt={product.name}
-            className="w-full h-full group-hover:scale-105 transition-transform" // <-- Bỏ 'object-cover'
-            style={{ objectFit: "cover" }} // <-- THÊM DÒNG NÀY
+            className="w-full h-full group-hover:scale-105 transition-transform"
+            style={{ objectFit: "cover" }} // <-- Sửa lỗi CSS (dùng style)
             preview={false}
           />
-          {/* (Logic giảm giá - bạn có thể thêm lại sau nếu backend hỗ trợ) */}
+          <button className="absolute top-2 right-2 bg-white rounded-full p-1.5 shadow">
+            <Heart size={20} className="text-gray-500" />
+          </button>
         </div>
         <div className="p-3">
           <h3 className="font-semibold text-gray-800 text-sm mb-2 line-clamp-2">
             {product.name}
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between">
             <span className="font-bold text-red-500">
               {product.price.toLocaleString("vi-VN")}₫
             </span>
-            {/* (Bỏ logic originalPrice vì MenuItem không có) */}
+            {/* THÊM NÚT GIỎ HÀNG NHANH */}
+            <button
+              onClick={handleAddToCart} // <-- KẾT NỐI HÀM MỚI
+              className="p-1.5 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"
+            >
+              <ShoppingCart size={18} />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* 7. LƯU Ý: File "ProductDetailModal" CŨNG SẼ CẦN SỬA LẠI */}
-      {/* Nó cũng đang nhận "Product" thay vì "MenuItem" */}
-      {/* <ProductDetailModal product={product} isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} /> */}
-
-      {/* Tạm thời vô hiệu hóa Modal chi tiết để sửa lỗi */}
+      {/* Modal chi tiết (đã sửa) */}
       {isModalOpen && (
         <ProductDetailModal
-          product={product} // Truyền MenuItem vào
+          product={product}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
         />

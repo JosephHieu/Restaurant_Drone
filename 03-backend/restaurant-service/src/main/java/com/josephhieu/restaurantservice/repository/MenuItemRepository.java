@@ -16,4 +16,9 @@ public interface MenuItemRepository extends JpaRepository<MenuItem, Integer> {
      * Tìm một món ăn dựa trên ID nhà hàng VÀ tên món ăn (không phân biệt hoa thường)
      */
     Optional<MenuItem> findByRestaurant_RestaurantIdAndNameIgnoreCase(Integer restaurantId, String name);
+
+    /**
+     * Tìm tất cả món ăn CỦA MỘT nhà hàng VÀ nhà hàng đó đang 'open'
+     */
+    List<MenuItem> findAllByRestaurant_StatusAndRestaurant_RestaurantId(String status, Integer restaurantId);
 }

@@ -1,5 +1,6 @@
 package com.josephhieu.restaurantservice.service;
 
+import com.josephhieu.restaurantservice.dto.MenuItemPublicDto;
 import com.josephhieu.restaurantservice.dto.request.*;
 import com.josephhieu.restaurantservice.entity.MenuItem;
 import com.josephhieu.restaurantservice.entity.Restaurant;
@@ -15,235 +16,194 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class RestaurantService {
 
     @Autowired
     private RestaurantRepository restaurantRepository;
-
     @Autowired
     private MenuItemRepository menuItemRepository;
-
     @Autowired
     private ModelMapper modelMapper;
 
+    // === HÀM TIỆN ÍCH MỚI (SỬA LỖI 500) ===
     /**
-     * API: GET /api/restaurants/my
-     * Lấy thông tin nhà hàng của chủ quán đang đăng nhập
+     * Chuyển Entity sang DTO một cách an toàn (tránh Lazy Loading)
      */
+    private MenuItemPublicDto convertToDto(MenuItem item) {
+        // 1. Ánh xạ thủ công, không dùng ModelMapper
+        MenuItemPublicDto dto = new MenuItemPublicDto();
+        dto.setItemId(item.getItemId());
+        dto.setName(item.getName());
+        dto.setDescription(item.getDescription());
+        dto.setPrice(item.getPrice());
+        dto.setImageUri(item.getImageUri());
+        dto.setAvailable(item.isAvailable());
+
+        // 2. Lấy ID lồng nhau một cách an toàn
+        if (item.getRestaurant() != null) {
+            dto.setRestaurantId(item.getRestaurant().getRestaurantId());
+        }
+        return dto;
+    }
+
+    // === CÁC HÀM CŨ CỦA BẠN (GIỮ NGUYÊN LOGIC) ===
+
     public Restaurant getMyRestaurant(CustomUserDetails user) {
-        // Dùng user.getId() để tìm nhà hàng
         return restaurantRepository.findAllByOwnerId(user.getId())
                 .stream()
                 .findFirst()
-                // THAY THẾ AccessDeniedException BẰNG ResourceNotFoundException
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant", "ownerId", user.getId()));
     }
 
-    // === HÀM MỚI: Dùng cho OWNER (PUT /{id}) ===
     @Transactional
     public Restaurant ownerUpdateRestaurant(Integer restaurantId, UpdateRestaurantRequest request, CustomUserDetails user) {
-
-        // 1. Tìm nhà hàng
         Restaurant restaurant = getRestaurantById(restaurantId);
-
-        // 2. Kiểm tra quyền sở hữu (BẮT BUỘC)
-        // Nếu user không phải là Admin VÀ không phải là chủ sở hữu
         checkOwnership(user, restaurant);
-
-        // 3. Cập nhật thông tin (Chủ nhà hàng không được sửa ownerId, status)
         restaurant.setName(request.getName());
         restaurant.setDescription(request.getDescription());
         restaurant.setPhone(request.getPhone());
         restaurant.setAddress(request.getAddress());
-
-        // 4. Nếu owner gửi status, ta cho phép đổi giữa open/closed
         if (request.getStatus() != null && (request.getStatus().equals("open") || request.getStatus().equals("closed"))) {
             restaurant.setStatus(request.getStatus());
         }
-
         return restaurantRepository.save(restaurant);
     }
 
     /**
-     * API: PUT /api/restaurants/my
-     * Cập nhật thông tin nhà hàng
+     * (Thay thế cho hàm getMenuItemsByRestaurant cũ)
+     * API: GET /api/restaurants/{id}/menu
+     * Lấy thực đơn của 1 nhà hàng (cho public) và trả về DTO
      */
+    public List<MenuItemPublicDto> getPublicMenuItemsByRestaurant(Integer restaurantId) {
+        if (!restaurantRepository.existsById(restaurantId)) {
+            throw new ResourceNotFoundException("Restaurant", "id", restaurantId);
+        }
+        List<MenuItem> menuItems = menuItemRepository.findAllByRestaurant_RestaurantId(restaurantId);
+
+        // Chuyển sang DTO
+        return menuItems.stream()
+                .map(this::convertToDto) // Gọi hàm tiện ích
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public Restaurant updateMyRestaurant(CustomUserDetails user, UpdateRestaurantRequest request) {
-        // 1. Lấy nhà hàng. Nếu user không sở hữu, hàm trên ném ra 404.
         Restaurant restaurant = getMyRestaurant(user);
-
-        // 2. Không cần kiểm tra checkOwnership() hay AccessDeniedException nữa
-
-        // 3. Cập nhật thông tin
         restaurant.setName(request.getName());
         restaurant.setDescription(request.getDescription());
         restaurant.setPhone(request.getPhone());
         restaurant.setAddress(request.getAddress());
-
         if (request.getStatus().equals("open") || request.getStatus().equals("closed")) {
             restaurant.setStatus(request.getStatus());
         }
-
         return restaurantRepository.save(restaurant);
     }
 
-    // === CÁC HÀM PUBLIC (CHO KHÁCH HÀNG) ===
-
-    /**
-     * API: GET /api/restaurants
-     * Lấy tất cả nhà hàng đang 'open'
-     */
     public List<Restaurant> getAllOpenRestaurants() {
         return restaurantRepository.findAllByStatus("open");
     }
 
-    /**
-     * API: GET /api/restaurants/{id}
-     * Lấy chi tiết 1 nhà hàng
-     */
     public Restaurant getRestaurantById(Integer id) {
         return restaurantRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Restaurant", "id", id));
     }
 
-    /**
-     * API: GET /api/restaurants/{id}/menu
-     * Lấy thực đơn của 1 nhà hàng
-     */
-    public List<MenuItem> getMenuItemsByRestaurant(Integer restaurantId) {
+    // === SỬA HÀM NÀY (Sửa lỗi 500) ===
+    public List<MenuItemPublicDto> getMenuItemsByRestaurant(Integer restaurantId) {
         if (!restaurantRepository.existsById(restaurantId)) {
             throw new ResourceNotFoundException("Restaurant", "id", restaurantId);
         }
-        return menuItemRepository.findAllByRestaurant_RestaurantId(restaurantId);
+        List<MenuItem> menuItems = menuItemRepository.findAllByRestaurant_RestaurantId(restaurantId);
+        // Trả về DTO
+        return menuItems.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
-    /**
-     * API: GET /api/menu-items/{id}
-     * (Dùng cho nội bộ, ví dụ: CartService)
-     */
+
     public MenuItem getMenuItemById(Integer itemId) {
         return menuItemRepository.findById(itemId)
                 .orElseThrow(() -> new ResourceNotFoundException("MenuItem", "id", itemId));
     }
 
-    // === CÁC HÀM PROTECTED (CHO CHỦ NHÀ HÀNG / ADMIN) ===
-
     /**
-     * API: POST /api/restaurants
-     * Tạo nhà hàng mới
+     * API: GET /api/menu-items/{id}
+     * Lấy chi tiết 1 món ăn và trả về DTO
      */
+    public MenuItemPublicDto getMenuItemByIdAndReturnDto(Integer itemId) {
+        // Lấy Entity (dùng hàm cũ)
+        MenuItem menuItem = getMenuItemById(itemId);
+
+        // Chuyển sang DTO
+        return convertToDto(menuItem);
+    }
+
     @Transactional
     public Restaurant createRestaurant(CreateRestaurantRequest request, CustomUserDetails user) {
         Restaurant restaurant = modelMapper.map(request, Restaurant.class);
-
-        // Gán chủ sở hữu là user đang đăng nhập
         restaurant.setOwnerId(request.getOwnerId());
-
-        // Trạng thái mặc định là "pending" (chờ Admin duyệt)
         restaurant.setStatus("pending");
-
         return restaurantRepository.save(restaurant);
     }
 
-    /**
-     * API: POST /api/restaurants/{id}/menu-items
-     * Thêm món ăn mới vào nhà hàng
-     */
-    /**
-     * API: POST /api/restaurants/{id}/menu-items
-     * Thêm món ăn mới vào nhà hàng
-     */
+    // Hàm createMenuItem CŨ (Giữ lại để dùng nội bộ)
     @Transactional
     public MenuItem createMenuItem(Integer restaurantId, CreateMenuItemRequest request, CustomUserDetails user) {
         Restaurant restaurant = getRestaurantById(restaurantId);
-        checkOwnership(user, restaurant); // Kiểm tra quyền (đã đúng)
-
-        // === THÊM LOGIC KIỂM TRA TRÙNG LẶP ===
-        // 1. Kiểm tra xem tên món (request.getName()) đã tồn tại trong nhà hàng này chưa
+        checkOwnership(user, restaurant);
         Optional<MenuItem> existingItem = menuItemRepository
                 .findByRestaurant_RestaurantIdAndNameIgnoreCase(restaurantId, request.getName());
-
         if (existingItem.isPresent()) {
-            // 2. Nếu tìm thấy, ném lỗi 409 Conflict
             throw new IllegalStateException("Lỗi: Tên món ăn này đã tồn tại trong nhà hàng của bạn.");
         }
-        // ======================================
-
-        // 3. Nếu không trùng, tiếp tục tạo món ăn
         MenuItem menuItem = modelMapper.map(request, MenuItem.class);
         menuItem.setRestaurant(restaurant);
-
         return menuItemRepository.save(menuItem);
     }
 
-    /**
-     * API: PUT /api/menu-items/{id}
-     * Cập nhật món ăn
-     */
+    // === HÀM MỚI (Sửa lỗi 500) ===
+    @Transactional
+    public MenuItemPublicDto createMenuItemAndReturnDto(Integer restaurantId, CreateMenuItemRequest request, CustomUserDetails user) {
+        MenuItem newMenuItem = createMenuItem(restaurantId, request, user);
+        return convertToDto(newMenuItem); // Chuyển sang DTO
+    }
+
     @Transactional
     public MenuItem updateMenuItem(Integer itemId, CreateMenuItemRequest request, CustomUserDetails user) {
         MenuItem menuItem = getMenuItemById(itemId);
-
-        // Bảo mật: Kiểm tra quyền sở hữu
         checkOwnership(user, menuItem.getRestaurant());
-
-        // Ánh xạ các trường từ DTO
         modelMapper.map(request, menuItem);
-
         return menuItemRepository.save(menuItem);
     }
 
-    /**
-     * API: DELETE /api/menu-items/{id}
-     * Xóa món ăn
-     */
+    // === HÀM MỚI (Sửa lỗi 500) ===
+    @Transactional
+    public MenuItemPublicDto updateMenuItemAndReturnDto(Integer itemId, CreateMenuItemRequest request, CustomUserDetails user) {
+        MenuItem updatedMenuItem = updateMenuItem(itemId, request, user);
+        return convertToDto(updatedMenuItem); // Chuyển sang DTO
+    }
+
     @Transactional
     public void deleteMenuItem(Integer itemId, CustomUserDetails user) {
         MenuItem menuItem = getMenuItemById(itemId);
-
-        // Bảo mật: Kiểm tra quyền sở hữu
         checkOwnership(user, menuItem.getRestaurant());
-
-        // === THÊM LOGIC KIỂM TRA ĐƠN HÀNG (Internal Communication) ===
-        // GIẢ LẬP: Nếu đã có OrderService
-        // boolean hasOrders = orderService.checkIfMenuItemHasOrders(itemId);
-        // if (hasOrders) {
-        //     // Nếu đã có đơn hàng, chỉ chuyển trạng thái (Soft Delete)
-        //     menuItem.setAvailable(false);
-        //     // Hoặc ném lỗi và yêu cầu dùng nút Switch
-        //     throw new IllegalStateException("Không thể xóa món này vĩnh viễn vì nó đã có trong đơn hàng.");
-        // }
-        //
-
         menuItemRepository.delete(menuItem);
     }
 
-    // Hàm tiện ích để kiểm tra bảo mật
     private void checkOwnership(CustomUserDetails user, Restaurant restaurant) {
-        // Lấy vai trò của user từ token
         boolean isAdmin = user.getAuthorities().stream()
                 .anyMatch(auth -> auth.getAuthority().equals("ADMIN"));
-
-        // Nếu user không phải là Admin VÀ không phải là chủ sở hữu
         if (!isAdmin && !restaurant.getOwnerId().equals(user.getId())) {
             throw new AccessDeniedException("Bạn không có quyền thực hiện hành động này.");
         }
     }
 
-    // HÀM MỚI
     public boolean checkUserOwnership(Integer ownerId) {
         return restaurantRepository.existsByOwnerId(ownerId);
     }
 
-    /**
-     * API: GET /api/restaurants/all
-     * (Dùng cho Admin - Lấy tất cả nhà hàng, kể cả 'pending' và 'closed')
-     */
     public List<Restaurant> getAllRestaurantsForAdmin() {
-        // Đơn giản là gọi findAll()
         return restaurantRepository.findAll();
     }
 
@@ -251,81 +211,54 @@ public class RestaurantService {
         return restaurantRepository.findAllByOwnerId(ownerId);
     }
 
-    /**
-     * API: PUT /api/restaurants/{id}/approve
-     * (Dùng cho Admin - Phê duyệt nhà hàng)
-     */
     @Transactional
     public Restaurant approveRestaurant(Integer restaurantId) {
-        // 1. Tìm nhà hàng
-        Restaurant restaurant = getRestaurantById(restaurantId); // Dùng lại hàm cũ
-
-        // 2. Chỉ phê duyệt nếu đang ở trạng thái 'pending'
+        Restaurant restaurant = getRestaurantById(restaurantId);
         if (!restaurant.getStatus().equals("pending")) {
             throw new IllegalStateException("Nhà hàng này không ở trạng thái 'chờ duyệt'.");
         }
-
-        // 3. Đổi trạng thái
         restaurant.setStatus("open");
-
-        // 4. Lưu lại
         return restaurantRepository.save(restaurant);
     }
 
-    /**
-     * API: PUT /api/restaurants/{id}/status
-     * (Dùng cho Admin - Cập nhật trạng thái (approve, ban, close))
-     */
     @Transactional
     public Restaurant updateRestaurantStatus(Integer restaurantId, AdminUpdateStatusRequest request) {
-        // 1. Tìm nhà hàng
-        Restaurant restaurant = getRestaurantById(restaurantId); // Dùng lại hàm cũ
-
-        // 2. Cập nhật trạng thái
-        // (Bạn có thể thêm logic kiểm tra xem 'status' có hợp lệ không)
+        Restaurant restaurant = getRestaurantById(restaurantId);
         restaurant.setStatus(request.getStatus());
-
-        // 3. Lưu lại
         return restaurantRepository.save(restaurant);
     }
 
-    /**
-     * API: PUT /api/restaurants/{id}
-     * (Dùng cho Admin - Cập nhật toàn bộ thông tin nhà hàng)
-     */
     @Transactional
-    public Restaurant adminUpdateRestaurant(Integer restaurantId, AdminUpdateRestaurantRequest request) {
-        // 1. Tìm nhà hàng
-        Restaurant restaurant = getRestaurantById(restaurantId); // Dùng lại hàm cũ
-
-        // 2. Cập nhật tất cả các trường từ DTO
+    public Restaurant adminUpdateRestaurant(Integer restaurantId, AdminUpdateRestaurantRequest request, CustomUserDetails user) {
+        Restaurant restaurant = getRestaurantById(restaurantId);
+        boolean isAdmin = user.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ADMIN"));
+        if (!isAdmin) {
+            throw new AccessDeniedException("Chỉ Admin mới có quyền sửa đổi toàn bộ.");
+        }
         restaurant.setName(request.getName());
         restaurant.setDescription(request.getDescription());
         restaurant.setPhone(request.getPhone());
         restaurant.setAddress(request.getAddress());
-        restaurant.setOwnerId(request.getOwnerId()); // Admin gán chủ mới
-        restaurant.setStatus(request.getStatus());   // Admin gán trạng thái mới
-
-        // 3. Lưu lại
+        restaurant.setOwnerId(request.getOwnerId());
+        restaurant.setStatus(request.getStatus());
         return restaurantRepository.save(restaurant);
     }
 
-    /**
-     * API: GET /api/restaurants/my/menu
-     * Lấy toàn bộ thực đơn của nhà hàng MẶC ĐỊNH
-     */
-    public List<MenuItem> getMyMenu(CustomUserDetails user) {
+    public List<MenuItemPublicDto> getMyMenu(CustomUserDetails user) {
         Restaurant restaurant = getMyRestaurant(user);
-        // Lấy tất cả menu items có restaurant_id này
-        return menuItemRepository.findAllByRestaurant_RestaurantId(restaurant.getRestaurantId());
+        List<MenuItem> menuItems = menuItemRepository.findAllByRestaurant_RestaurantId(restaurant.getRestaurantId());
+        // Sửa: Ánh xạ thủ công
+        return menuItems.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
-    /**
-     * API: GET /api/menu-items/public/all
-     * Lấy tất cả món ăn từ các nhà hàng đang 'open'
-     */
-    public List<MenuItem> getAllPublicMenuItems() {
-        // Gọi hàm repo mới, chỉ lấy món từ các quán "open"
-        return menuItemRepository.findAllByRestaurant_Status("open");
+    public List<MenuItemPublicDto> getAllPublicMenuItems(Optional<Integer> restaurantId) {
+        List<MenuItem> menuItems;
+        if (restaurantId.isPresent()) {
+            menuItems = menuItemRepository.findAllByRestaurant_StatusAndRestaurant_RestaurantId("open", restaurantId.get());
+        } else {
+            menuItems = menuItemRepository.findAllByRestaurant_Status("open");
+        }
+        // Sửa: Ánh xạ thủ công
+        return menuItems.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 }

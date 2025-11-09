@@ -1,5 +1,6 @@
 package com.josephhieu.userservice.client;
 
+import com.josephhieu.userservice.client.dto.MenuItemDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,4 +17,7 @@ public interface RestaurantClient {
             // Chúng ta cần chuyển tiếp token của Admin
             @RequestHeader("Authorization") String authorizationHeader
     );
+
+    @GetMapping("/api/menu-items/{id}")
+    MenuItemDto getMenuItemById(@PathVariable("id") Integer id);
 }

@@ -39,14 +39,7 @@ export default function ProductDetailModal({
   const handleAddToCart = () => {
     // 7. SỬA LẠI DỮ LIỆU GỬI ĐI
     // (Lưu ý: bạn sẽ cần cập nhật cart-context để chấp nhận MenuItem)
-    addToCart({
-      id: product.itemId, // <-- Dùng itemId
-      name: product.name,
-      price: product.price,
-      image: product.imageUri, // <-- Dùng imageUri
-      quantity: quantity,
-      // (Bỏ qua discount và originalPrice vì MenuItem không có)
-    });
+    addToCart(product, quantity);
     setQuantity(1);
     onClose();
   };

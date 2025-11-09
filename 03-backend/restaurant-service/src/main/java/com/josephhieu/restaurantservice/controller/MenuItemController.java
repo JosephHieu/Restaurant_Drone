@@ -1,5 +1,6 @@
 package com.josephhieu.restaurantservice.controller;
 
+import com.josephhieu.restaurantservice.dto.MenuItemPublicDto;
 import com.josephhieu.restaurantservice.dto.request.CreateMenuItemRequest;
 import com.josephhieu.restaurantservice.entity.MenuItem;
 import com.josephhieu.restaurantservice.security.CustomUserDetails;
@@ -12,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/menu-items")
@@ -20,22 +22,34 @@ public class MenuItemController {
     @Autowired
     private RestaurantService restaurantService;
 
-    // === API PUBLIC (CHO SERVICE KHÁC GỌI) ===
 
+    // === API PUBLIC ===
+
+    // SỬA LỖI 500
     @GetMapping("/{id}")
-    public ResponseEntity<MenuItem> getMenuItemById(@PathVariable Integer id) {
-        return ResponseEntity.ok(restaurantService.getMenuItemById(id));
+    public ResponseEntity<MenuItemPublicDto> getMenuItemById(@PathVariable Integer id) { // <-- Sửa kiểu
+        // Sửa: Gọi hàm mới trả về DTO
+        return ResponseEntity.ok(restaurantService.getMenuItemByIdAndReturnDto(id));
     }
 
-    // === API PROTECTED (CẦN ĐĂNG NHẬP) ===
+    @GetMapping("/public/all")
+    public ResponseEntity<List<MenuItemPublicDto>> getAllPublicMenuItems(
+            @RequestParam(required = false) Integer restaurantId
+    ) {
+        return ResponseEntity.ok(restaurantService.getAllPublicMenuItems(Optional.ofNullable(restaurantId)));
+    }
 
+    // === API PROTECTED ===
+
+    // SỬA LỖI 500
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'RESTAURANT_OWNER')")
-    public ResponseEntity<MenuItem> updateMenuItem(
-            @PathVariable("id") Integer itemId,
-            @Valid @RequestBody CreateMenuItemRequest request,
-            @AuthenticationPrincipal CustomUserDetails user) {
-        MenuItem updatedItem = restaurantService.updateMenuItem(itemId, request, user);
+    public ResponseEntity<MenuItemPublicDto> updateMenuItem( // <-- Sửa kiểu
+                                                             @PathVariable("id") Integer itemId,
+                                                             @Valid @RequestBody CreateMenuItemRequest request,
+                                                             @AuthenticationPrincipal CustomUserDetails user) {
+        // Sửa: Gọi hàm mới trả về DTO
+        MenuItemPublicDto updatedItem = restaurantService.updateMenuItemAndReturnDto(itemId, request, user);
         return ResponseEntity.ok(updatedItem);
     }
 
@@ -46,13 +60,5 @@ public class MenuItemController {
             @AuthenticationPrincipal CustomUserDetails user) {
         restaurantService.deleteMenuItem(itemId, user);
         return ResponseEntity.ok("Menu item deleted successfully.");
-    }
-
-    /**
-     * API PUBLIC: Lấy tất cả món ăn (cho trang chủ client-web)
-     */
-    @GetMapping("/public/all")
-    public ResponseEntity<List<MenuItem>> getAllPublicMenuItems() {
-        return ResponseEntity.ok(restaurantService.getAllPublicMenuItems());
     }
 }

@@ -38,21 +38,22 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // <-- Cho phép Đăng nhập/Đăng ký
-                        .requestMatchers("/eureka/**").permitAll() // <-- Cho phép Eureka
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/eureka/**").permitAll()
+                        .requestMatchers("/error").permitAll()
 
-                        // API "/api/users/me" chỉ cần đăng nhập là được
-                        .requestMatchers("/api/users/me").authenticated()
-
-                        // Tất cả các API /api/users/ khác (như GET, POST, DELETE)
-                        // Phải được xử lý bằng @PreAuthorize (vì đã bật @EnableMethodSecurity)
-                        .requestMatchers("/api/users/**").authenticated()
-
+                        // === THÊM DÒNG NÀY ĐỂ SỬA LỖI 401 ===
                         .requestMatchers("/api/cart/**").authenticated()
+                        // ===================================
 
+                        .requestMatchers("/api/users/me").authenticated()
+                        .requestMatchers("/api/users/**").hasAuthority("ADMIN")
                         .anyRequest().authenticated()
                 );
 

@@ -1,8 +1,23 @@
 "use client";
 
 import { X, Plus, Minus, Trash2, ShoppingCart } from "lucide-react";
-import { useCart } from "@/context/cart-context";
+import { useCart } from "@/context/cart-context"; // <-- 1. DÙNG CONTEXT THẬT
 import { useAuth } from "@/context/auth-context";
+import api from "@/services/api"; // <-- 2. IMPORT API
+import { useState, useMemo } from "react"; // <-- 3. IMPORT HOOKS
+import { message, Spin, Alert } from "antd"; // <-- 4. IMPORT ANT DESIGN
+import { AxiosError } from "axios";
+
+// Hàm tiện ích xây dựng URL ảnh
+const getImageUrl = (imageUri: string | undefined): string => {
+  if (!imageUri) return "https://via.placeholder.com/80?text=No+Image";
+  return `http://localhost:8080/api/restaurants/images/${imageUri}`;
+};
+
+// Kiểu dữ liệu lỗi
+interface ErrorResponse {
+  message: string;
+}
 
 interface CartModalProps {
   isOpen: boolean;
@@ -15,31 +30,57 @@ export default function CartModal({
   onClose,
   onOpenLogin,
 }: CartModalProps) {
-  const { cartItems, updateQuantity, removeFromCart } = useCart();
-  const { isAuthenticated } = useAuth();
+  // 5. LẤY GIỎ HÀNG THẬT TỪ CONTEXT
+  const {
+    cart,
+    updateQuantity,
+    removeFromCart,
+    fetchCart,
+    isLoading: isCartLoading,
+  } = useCart();
+  const { isAuthenticated, user } = useAuth();
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
 
-  const calculateTotal = () => {
-    return cartItems.reduce((total, item) => {
-      const discountedPrice = item.price * (1 - (item.discount || 0) / 100);
-      return total + discountedPrice * item.quantity;
+  // 6. TÍNH TOÁN DỰA TRÊN GIỎ HÀNG THẬT
+  // (Giả sử UserService/CartContext đã cung cấp giá)
+  const calculateTotal = useMemo(() => {
+    if (!cart) return 0;
+    return cart.cartItems.reduce((total, item) => {
+      // (Bỏ qua logic 'discount' vì backend không có)
+      return total + (item.price || 0) * item.quantity;
     }, 0);
-  };
+  }, [cart]);
 
-  const calculateSavings = () => {
-    return cartItems.reduce((savings, item) => {
-      const discountAmount =
-        ((item.price * (item.discount || 0)) / 100) * item.quantity;
-      return savings + discountAmount;
-    }, 0);
-  };
-
-  const handleCheckout = () => {
+  // === 7. HÀM THANH TOÁN (GỌI ORDER SERVICE) ===
+  const handleCheckout = async () => {
     if (!isAuthenticated) {
       onOpenLogin();
       onClose();
-    } else {
-      // Proceed with checkout
-      alert("Tiến hành thanh toán");
+      return;
+    }
+
+    setIsCheckoutLoading(true);
+    try {
+      // Gọi API POST /api/orders (đến OrderService)
+      await api.post("/api/orders", {
+        // Lấy địa chỉ từ User (nếu có) hoặc dùng địa chỉ mặc định
+        deliveryAddress: user?.address || "123 Đường ABC, Quận 1, TPHCM",
+        paymentMethod: "COD", // (Tạm thời là COD, sau này sẽ thêm VNPAY)
+      });
+
+      message.success("Đặt hàng thành công!");
+      await fetchCart(); // Tải lại giỏ hàng (sẽ bị rỗng)
+      onClose(); // Đóng modal
+    } catch (err) {
+      if (err instanceof AxiosError && err.response) {
+        const errorData = err.response.data as ErrorResponse;
+        message.error(errorData.message || "Lỗi khi đặt hàng.");
+      } else {
+        message.error("Lỗi khi đặt hàng.");
+      }
+      console.error(err);
+    } finally {
+      setIsCheckoutLoading(false);
     }
   };
 
@@ -68,23 +109,26 @@ export default function CartModal({
 
           {/* Cart Items */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {cartItems.length === 0 ? (
+            {isCartLoading ? (
+              <div className="flex justify-center items-center h-full">
+                <Spin tip="Đang tải giỏ hàng..." />
+              </div>
+            ) : !cart || cart.cartItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500">
                 <ShoppingCart size={48} className="mb-2 opacity-50" />
                 <p>Giỏ hàng của bạn trống</p>
               </div>
             ) : (
-              cartItems.map((item) => {
-                const discountedPrice =
-                  item.price * (1 - (item.discount || 0) / 100);
+              // 8. DÙNG DỮ LIỆU THẬT TỪ 'cart.cartItems'
+              cart.cartItems.map((item) => {
                 return (
                   <div
-                    key={item.id}
+                    key={item.cartItemId} // <-- Sửa: Dùng cartItemId
                     className="flex gap-3 border border-gray-200 rounded-lg p-3"
                   >
                     {/* Image */}
                     <img
-                      src={item.image || "/placeholder.svg"}
+                      src={getImageUrl(item.imageUri)} // <-- Sửa: Dùng imageUri
                       alt={item.name}
                       className="w-20 h-20 object-cover rounded-lg"
                     />
@@ -93,27 +137,18 @@ export default function CartModal({
                     <div className="flex-1">
                       <h3 className="font-semibold text-sm">{item.name}</h3>
                       <div className="flex items-center gap-2 mt-1">
-                        {item.discount ? (
-                          <>
-                            <span className="text-red-500 font-bold">
-                              {discountedPrice.toLocaleString()}đ
-                            </span>
-                            <span className="text-xs text-gray-400 line-through">
-                              {item.price.toLocaleString()}đ
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-red-500 font-bold">
-                            {item.price.toLocaleString()}đ
-                          </span>
-                        )}
+                        {/* (Bỏ logic discount) */}
+                        <span className="text-red-500 font-bold">
+                          {item.price ? item.price.toLocaleString() : 0}đ
+                        </span>
                       </div>
 
                       {/* Quantity Controls */}
                       <div className="flex items-center gap-2 mt-2">
                         <button
                           onClick={() =>
-                            updateQuantity(item.id, item.quantity - 1)
+                            // Sửa: Dùng itemId
+                            updateQuantity(item.itemId, item.quantity - 1)
                           }
                           className="p-1 hover:bg-gray-100 rounded transition"
                         >
@@ -124,14 +159,15 @@ export default function CartModal({
                         </span>
                         <button
                           onClick={() =>
-                            updateQuantity(item.id, item.quantity + 1)
+                            // Sửa: Dùng itemId
+                            updateQuantity(item.itemId, item.quantity + 1)
                           }
                           className="p-1 hover:bg-gray-100 rounded transition"
                         >
                           <Plus size={16} />
                         </button>
                         <button
-                          onClick={() => removeFromCart(item.id)}
+                          onClick={() => removeFromCart(item.itemId)} // Sửa: Dùng itemId
                           className="ml-auto p-1 hover:bg-red-50 rounded transition text-red-500"
                         >
                           <Trash2 size={16} />
@@ -145,32 +181,25 @@ export default function CartModal({
           </div>
 
           {/* Footer */}
-          {cartItems.length > 0 && (
+          {cart && cart.cartItems.length > 0 && (
             <div className="border-t border-gray-200 p-4 space-y-3">
-              {/* Savings */}
-              {calculateSavings() > 0 && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>Tiết kiệm:</span>
-                  <span className="font-semibold">
-                    {calculateSavings().toLocaleString()}đ
-                  </span>
-                </div>
-              )}
+              {/* (Bỏ logic 'calculateSavings') */}
 
               {/* Total */}
               <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-3">
                 <span>Tổng cộng:</span>
                 <span className="text-red-500">
-                  {calculateTotal().toLocaleString()}đ
+                  {calculateTotal.toLocaleString()}đ
                 </span>
               </div>
 
               {/* Checkout Button */}
               <button
                 onClick={handleCheckout}
-                className="w-full bg-red-500 text-white py-3 rounded-lg font-semibold hover:bg-red-600 transition"
+                disabled={isCheckoutLoading || isCartLoading} // <-- Thêm disabled
+                className="w-full bg-red-500 text-white py-3 rounded-lg font-semibold hover:bg-red-600 transition disabled:bg-gray-400"
               >
-                Thanh toán
+                {isCheckoutLoading ? "Đang xử lý..." : "Thanh toán"}
               </button>
             </div>
           )}
