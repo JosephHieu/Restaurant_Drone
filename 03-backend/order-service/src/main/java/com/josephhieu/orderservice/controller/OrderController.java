@@ -1,6 +1,7 @@
 package com.josephhieu.orderservice.controller;
 
 import com.josephhieu.orderservice.dto.OrderRequest;
+import com.josephhieu.orderservice.dto.OrderResponseDto;
 import com.josephhieu.orderservice.entity.Order;
 import com.josephhieu.orderservice.security.CustomUserDetails;
 import com.josephhieu.orderservice.service.OrderService;
@@ -22,13 +23,14 @@ public class OrderController {
      * API chính để tạo đơn hàng
      */
     @PostMapping
-    @PreAuthorize("isAuthenticated()") // Bất cứ ai đã đăng nhập (USER, ADMIN...)
-    public ResponseEntity<Order> createOrder(
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<OrderResponseDto> createOrder(
             @AuthenticationPrincipal CustomUserDetails user,
             @Valid @RequestBody OrderRequest orderRequest) {
 
-        Order newOrder = orderService.createOrder(user, orderRequest);
-        return ResponseEntity.status(201).body(newOrder);
+        // SỬA 2: Nhận DTO mới
+        OrderResponseDto newOrderResponse = orderService.createOrder(user, orderRequest);
+        return ResponseEntity.status(201).body(newOrderResponse);
     }
 
     // (Thêm các API GET khác ở đây)

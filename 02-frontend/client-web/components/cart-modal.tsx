@@ -14,6 +14,16 @@ const getImageUrl = (imageUri: string | undefined): string => {
   return `http://localhost:8080/api/restaurants/images/${imageUri}`;
 };
 
+// 1. Định nghĩa kiểu DTO trả về (khớp với OrderResponseDto)
+interface OrderResponse {
+  order: {
+    // (Chi tiết đơn hàng nếu cần)
+    orderId: number;
+    totalPrice: number;
+  };
+  paymentUrl: string; // <-- URL CỦA VNPAY
+}
+
 // Kiểu dữ liệu lỗi
 interface ErrorResponse {
   message: string;
@@ -23,12 +33,14 @@ interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenLogin: () => void;
+  onProceedToCheckout: () => void; // <-- 1. THÊM PROP MỚI
 }
 
 export default function CartModal({
   isOpen,
   onClose,
   onOpenLogin,
+  onProceedToCheckout, // <-- 2. LẤY PROP MỚI
 }: CartModalProps) {
   // 5. LẤY GIỎ HÀNG THẬT TỪ CONTEXT
   const {
@@ -56,31 +68,11 @@ export default function CartModal({
     if (!isAuthenticated) {
       onOpenLogin();
       onClose();
-      return;
-    }
-
-    setIsCheckoutLoading(true);
-    try {
-      // Gọi API POST /api/orders (đến OrderService)
-      await api.post("/api/orders", {
-        // Lấy địa chỉ từ User (nếu có) hoặc dùng địa chỉ mặc định
-        deliveryAddress: user?.address || "123 Đường ABC, Quận 1, TPHCM",
-        paymentMethod: "COD", // (Tạm thời là COD, sau này sẽ thêm VNPAY)
-      });
-
-      message.success("Đặt hàng thành công!");
-      await fetchCart(); // Tải lại giỏ hàng (sẽ bị rỗng)
-      onClose(); // Đóng modal
-    } catch (err) {
-      if (err instanceof AxiosError && err.response) {
-        const errorData = err.response.data as ErrorResponse;
-        message.error(errorData.message || "Lỗi khi đặt hàng.");
-      } else {
-        message.error("Lỗi khi đặt hàng.");
-      }
-      console.error(err);
-    } finally {
-      setIsCheckoutLoading(false);
+    } else {
+      // Đóng modal
+      onClose();
+      // Chuyển hướng đến trang checkout
+      onProceedToCheckout(); // <-- 4. GỌI HÀM MỚI
     }
   };
 

@@ -1,0 +1,49 @@
+server:
+  port: 8084 # C?ng cho PaymentService
+
+spring:
+  application:
+    name: PAYMENT-SERVICE # <-- Vi?t HOA (Quan tr?ng cho Gateway)
+
+  main:
+    banner-mode: off
+
+  datasource:
+    url: jdbc:mysql://localhost:3308/payment_service # <-- DATABASE M?I
+    username: root
+    password: root # Thay b?ng m?t kh?u c?a b?n
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+# C?u hình Eureka Client
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+
+# C?u hình JWT (Ph?i kh?p v?i User Service)
+jwt:
+  secret: hsXSXV5UGLVBCqob4jHK6FzXCJ8OUtZNSBwdvYXv5I8XiR2Ef9 # <-- Khóa c?a b?n
+  expiration-ms: 86400000
+
+# === C?U HÌNH CHO VNPAY ===
+vnpay:
+  tmnCode: "BUT55BVY"  # <-- Copy TmnCode t? email c?a b?n
+  hashSecret: "V0C722VD2KWCAIOWCC5EOI24150X9V0P" # <-- Copy HashSecret t? email
+  url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html" # (?ã ?úng)
+
+  # URL tr? v? (cho khách hàng):
+  returnUrl: "http://localhost:3000/payment-result"
+
+  # URL IPN (cho máy ch? VNPay g?i):
+  # (S? d?ng URL công khai t? ngrok tr? ??n Gateway 8080)
+  ipnUrl: "https://rotten-shoes-burn.loca.lt/api/payments/vnpay-ipn"

@@ -5,7 +5,11 @@ import com.josephhieu.orderservice.client.UserClient;
 import com.josephhieu.orderservice.client.dto.CartDto;
 import com.josephhieu.orderservice.client.dto.CartItemDto;
 import com.josephhieu.orderservice.client.dto.MenuItemDto;
-import com.josephhieu.orderservice.dto.OrderRequest; // Sẽ tạo ở bước sau
+import com.josephhieu.orderservice.dto.OrderRequest;
+import com.josephhieu.orderservice.client.PaymentClient; // <-- Import
+import com.josephhieu.orderservice.client.dto.PaymentRequest; // <-- Import
+import com.josephhieu.orderservice.client.dto.PaymentResponse; // <-- Import
+import com.josephhieu.orderservice.dto.OrderResponseDto;// Sẽ tạo ở bước sau
 import com.josephhieu.orderservice.entity.Order;
 import com.josephhieu.orderservice.entity.OrderItem;
 import com.josephhieu.orderservice.repository.OrderRepository;
@@ -31,6 +35,9 @@ public class OrderService {
     @Autowired
     private RestaurantClient restaurantClient;
 
+    @Autowired
+    private PaymentClient paymentClient;
+
     // Hàm tiện ích lấy token "Bearer ..." từ request
     private String getAuthHeader() {
         return ((ServletRequestAttributes) Objects.requireNonNull(RequestContextHolder.getRequestAttributes()))
@@ -42,7 +49,7 @@ public class OrderService {
      * Tạo đơn hàng mới từ giỏ hàng
      */
     @Transactional
-    public Order createOrder(CustomUserDetails user, OrderRequest orderRequest) {
+    public OrderResponseDto createOrder(CustomUserDetails user, OrderRequest orderRequest) {
         String authHeader = getAuthHeader();
 
         // 1. GỌI USER-SERVICE: Lấy giỏ hàng
@@ -91,11 +98,32 @@ public class OrderService {
         order.setOrderItems(orderItems);
         Order savedOrder = orderRepository.save(order);
 
-        // 5. GỌI USER-SERVICE: Xóa giỏ hàng
+        // 3. GỌI USER-SERVICE: Xóa giỏ hàng
         userClient.clearCart(authHeader);
 
-        return savedOrder;
+        // 4. === LOGIC MỚI: TẠO THANH TOÁN ===
+        String paymentUrl = null;
+        if ("VNPAY".equalsIgnoreCase(orderRequest.getPaymentMethod())) {
+
+            // 4a. Tạo yêu cầu thanh toán
+            PaymentRequest paymentRequest = new PaymentRequest();
+            paymentRequest.setOrderId(savedOrder.getOrderId());
+            paymentRequest.setAmount(savedOrder.getTotalPrice());
+
+            // 4b. GỌI PAYMENT-SERVICE
+            PaymentResponse paymentResponse = paymentClient.createVnPayPayment(paymentRequest, authHeader);
+            paymentUrl = paymentResponse.getPaymentUrl();
+
+        } else {
+            // Nếu là COD
+            paymentUrl = "COD";
+            // (Bạn có thể thêm logic gửi tin nhắn cho DroneService ở đây nếu là COD)
+        }
+
+        // 5. Trả về Order và Payment URL
+        return new OrderResponseDto(savedOrder, paymentUrl);
     }
+
 
     // (Bạn có thể thêm các hàm GET /api/orders/my-history ở đây)
 }
