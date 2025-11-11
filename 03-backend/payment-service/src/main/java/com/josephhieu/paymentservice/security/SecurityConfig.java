@@ -38,7 +38,7 @@ public class SecurityConfig {
                         // QUAN TRỌNG: Mở API cho VNPay gọi (IPN)
                         .requestMatchers("/api/payments/vnpay-ipn").permitAll()
 
-                        // (Tùy chọn: Mở cả đường dẫn trả về nếu bạn xử lý ở backend)
+                        // (Tùy chọn: Mở cả đường dẫn trrả về nếu bạn xử lý ở backend)
                         // .requestMatchers("/api/payments/vnpay-return").permitAll()
 
                         .requestMatchers("/eureka/**").permitAll()

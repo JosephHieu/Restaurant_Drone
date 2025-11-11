@@ -12,6 +12,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
@@ -33,5 +35,28 @@ public class OrderController {
         return ResponseEntity.status(201).body(newOrderResponse);
     }
 
-    // (Thêm các API GET khác ở đây)
+    /**
+     * API cho khách hàng xem lịch sử đơn hàng của họ
+     */
+    @GetMapping("/my-history")
+    @PreAuthorize("isAuthenticated()") // Yêu cầu phải đăng nhập
+    public ResponseEntity<List<Order>> getMyOrderHistory(
+            @AuthenticationPrincipal CustomUserDetails user) {
+
+        List<Order> orders = orderService.getMyOrderHistory(user);
+        return ResponseEntity.ok(orders);
+    }
+
+    /**
+     * API cho khách hàng xem chi tiết 1 đơn hàng
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()") // Yêu cầu phải đăng nhập
+    public ResponseEntity<Order> getOrderById(
+            @PathVariable Integer id,
+            @AuthenticationPrincipal CustomUserDetails user) {
+
+        Order order = orderService.getOrderById(id, user);
+        return ResponseEntity.ok(order);
+    }
 }

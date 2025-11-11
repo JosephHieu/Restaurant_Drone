@@ -2,6 +2,7 @@ package com.josephhieu.userservice.controller;
 
 import com.josephhieu.userservice.dto.request.AdminCreateUserRequest; // <-- DTO MỚI
 import com.josephhieu.userservice.dto.request.AdminUpdateUserRequest;
+import com.josephhieu.userservice.dto.request.UpdateProfileRequest;
 import com.josephhieu.userservice.entity.User;
 import com.josephhieu.userservice.exception.ResourceNotFoundException; // Cần import
 import com.josephhieu.userservice.security.CustomUserDetails;
@@ -74,5 +75,18 @@ public class UserController {
     public ResponseEntity<?> updateUser(@PathVariable Integer id, @Valid @RequestBody AdminUpdateUserRequest request) {
         userService.updateUser(id, request);
         return ResponseEntity.ok("User updated successfully.");
+    }
+
+    /**
+     * API cho user tự cập nhật thông tin (Họ tên, SĐT, Địa chỉ)
+     */
+    @PutMapping("/me")
+    @PreAuthorize("isAuthenticated()") // Yêu cầu đăng nhập
+    public ResponseEntity<User> updateUserProfile(
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            @Valid @RequestBody UpdateProfileRequest request) {
+
+        User updatedUser = userService.updateUserProfile(currentUser.getId(), request);
+        return ResponseEntity.ok(updatedUser);
     }
 }

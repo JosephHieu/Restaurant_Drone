@@ -10,6 +10,7 @@ export interface MenuItem {
   price: number;
   imageUri: string;
   isAvailable: boolean;
+  restaurantName: string; // Tên nhà hàng (không bắt buộc)
   createdAt: string;
   updatedAt: string;
 }

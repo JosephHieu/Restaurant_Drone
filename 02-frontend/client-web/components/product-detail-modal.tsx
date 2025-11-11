@@ -1,7 +1,7 @@
 "use client";
 
 import { X, Star, ShoppingCart, Heart, Plus, Minus } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "@/context/cart-context";
 import type { MenuItem } from "@/types"; // <-- 1. IMPORT INTERFACE THẬT
 import { Image } from "antd"; // <-- 2. DÙNG COMPONENT ẢNH TỐI ƯU
@@ -30,6 +30,12 @@ export default function ProductDetailModal({
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
   const { addToCart } = useCart(); // (Giả sử useCart() đã được cập nhật)
+
+  useEffect(() => {
+    if (isOpen) {
+      setQuantity(1);
+    }
+  }, [isOpen]);
 
   if (!isOpen || !product) return null;
 
@@ -80,7 +86,7 @@ export default function ProductDetailModal({
 
             {/* Restaurant Info (Cần gọi API để lấy tên thật) */}
             <p className="text-sm text-gray-600 mb-4">
-              Từ: Nhà hàng (ID: {product.restaurantId})
+              Từ: Nhà hàng (ID: {product.restaurantName})
             </p>
 
             {/* (Rating - v0 dùng dữ liệu giả) */}

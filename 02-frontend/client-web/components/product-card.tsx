@@ -57,6 +57,9 @@ export default function ProductCard({ product }: ProductCardProps) {
           <h3 className="font-semibold text-gray-800 text-sm mb-2 line-clamp-2">
             {product.name}
           </h3>
+          <p className="text-sm text-gray-500 mb-2 truncate">
+            {product.restaurantName}
+          </p>
           <div className="flex items-center justify-between">
             <span className="font-bold text-red-500">
               {product.price.toLocaleString("vi-VN")}₫

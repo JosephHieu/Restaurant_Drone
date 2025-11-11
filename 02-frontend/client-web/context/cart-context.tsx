@@ -11,7 +11,7 @@ import {
 import api from "@/services/api"; // Service gọi API
 import { useAuth } from "./auth-context"; // Lấy thông tin đăng nhập
 import type { MenuItem } from "@/types"; // Kiểu dữ liệu Món ăn
-import { message } from "antd"; // Dùng message của AntD
+import { message, notification } from "antd"; // Dùng message của AntD
 
 // === 1. ĐỊNH NGHĨA INTERFACE THẬT (Khớp với Backend) ===
 export interface CartItem {
@@ -77,7 +77,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // === 4. HÀM THÊM VÀO GIỎ HÀNG THẬT ===
   const addToCart = async (item: MenuItem, quantity: number) => {
     if (!isAuthenticated) {
-      message.error("Vui lòng đăng nhập để thêm vào giỏ hàng!");
+      alert("Vui lòng đăng nhập để thêm món ăn vào giỏ hàng.");
       return;
     }
 
@@ -91,7 +91,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       });
 
       setCart(response.data); // Cập nhật giỏ hàng
-      message.success(`Đã thêm "${item.name}" vào giỏ hàng!`);
+      // message.success(`Đã thêm "${item.name}" vào giỏ hàng!`);
+      alert(`Đã thêm "${item.name}" vào giỏ hàng!`);
     } catch (error: any) {
       if (
         error.response &&

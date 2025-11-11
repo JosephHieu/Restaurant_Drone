@@ -26,6 +26,11 @@ interface AuthContextType {
     phone: string
   ) => Promise<void>;
   logout: () => void;
+  updateProfile: (data: {
+    fullName: string;
+    phone: string;
+    address: string;
+  }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,6 +47,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("client_token");
     delete api.defaults.headers.common["Authorization"];
   }, []);
+
+  const updateProfile = async (data: {
+    fullName: string;
+    phone: string;
+    address: string;
+  }) => {
+    if (!user) throw new Error("Chưa đăng nhập");
+
+    try {
+      // 1. Gọi API "thật" của user-service
+      const response = await api.put<User>("/api/users/me", {
+        fullName: data.fullName,
+        phone: data.phone,
+        address: data.address,
+        // (Backend UserService /me không nên cho phép đổi mật khẩu ở đây)
+      });
+
+      // 2. Cập nhật state (trạng thái) của user
+      setUser(response.data);
+      alert("Cập nhật profile thành công!");
+    } catch (err: any) {
+      console.error("Lỗi khi cập nhật profile:", err);
+      // (Xử lý lỗi 400 nếu SĐT bị trùng)
+      if (err.response && err.response.data && err.response.data.message) {
+        throw new Error(err.response.data.message);
+      }
+      throw new Error("Cập nhật thất bại.");
+    }
+  };
 
   // 3. KIỂM TRA TOKEN CŨ KHI TẢI TRANG
   useEffect(() => {
@@ -114,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
+        updateProfile,
       }}
     >
       {!isLoading && children}

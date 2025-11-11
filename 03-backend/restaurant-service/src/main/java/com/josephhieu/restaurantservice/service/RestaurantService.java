@@ -251,14 +251,26 @@ public class RestaurantService {
         return menuItems.stream().map(this::convertToDto).collect(Collectors.toList());
     }
 
+    /**
+     * API: GET /api/menu-items/public/all
+     * Sửa: Thêm Optional restaurantId
+     */
     public List<MenuItemPublicDto> getAllPublicMenuItems(Optional<Integer> restaurantId) {
+
         List<MenuItem> menuItems;
+
+        // === SỬA LOGIC LỌC MỚI ===
         if (restaurantId.isPresent()) {
+            // 1. Nếu có ID, lọc theo nhà hàng đó (và phải đang 'open')
             menuItems = menuItemRepository.findAllByRestaurant_StatusAndRestaurant_RestaurantId("open", restaurantId.get());
         } else {
+            // 2. Nếu không có ID, lấy tất cả món từ các quán 'open' (như cũ)
             menuItems = menuItemRepository.findAllByRestaurant_Status("open");
         }
-        // Sửa: Ánh xạ thủ công
-        return menuItems.stream().map(this::convertToDto).collect(Collectors.toList());
+
+        // (Phần code map sang DTO giữ nguyên)
+        return menuItems.stream()
+                .map(this::convertToDto) // Gọi hàm tiện ích
+                .collect(Collectors.toList());
     }
 }

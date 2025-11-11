@@ -3,6 +3,7 @@ package com.josephhieu.userservice.service;
 import com.josephhieu.userservice.client.RestaurantClient;
 import com.josephhieu.userservice.dto.request.AdminCreateUserRequest;
 import com.josephhieu.userservice.dto.request.AdminUpdateUserRequest;
+import com.josephhieu.userservice.dto.request.UpdateProfileRequest;
 import com.josephhieu.userservice.entity.Cart;
 import com.josephhieu.userservice.entity.Role;
 import com.josephhieu.userservice.entity.User;
@@ -44,6 +45,31 @@ public class UserService {
     public User getUserProfile(Integer id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+    }
+
+    /**
+     * API: PUT /api/users/me
+     * Xử lý logic cho user tự cập nhật thông tin
+     */
+    @Transactional
+    public User updateUserProfile(Integer userId, UpdateProfileRequest request) {
+        // 1. Tìm user
+        User user = getUserById(userId); // Dùng lại hàm cũ
+
+        // 2. Kiểm tra SĐT trùng (nếu SĐT bị thay đổi)
+        // (Bỏ qua nếu SĐT mới giống hệt SĐT cũ)
+        if (!user.getPhone().equals(request.getPhone())) {
+            if (userRepository.existsByPhone(request.getPhone())) {
+                throw new IllegalStateException("Lỗi: Số điện thoại này đã được đăng ký.");
+            }
+        }
+
+        // 3. Cập nhật các trường
+        user.setFullName(request.getFullName());
+        user.setPhone(request.getPhone());
+        user.setAddress(request.getAddress());
+
+        return userRepository.save(user);
     }
 
     /**

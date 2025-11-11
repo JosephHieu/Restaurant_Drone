@@ -12,9 +12,11 @@ import com.josephhieu.orderservice.client.dto.PaymentResponse; // <-- Import
 import com.josephhieu.orderservice.dto.OrderResponseDto;// Sẽ tạo ở bước sau
 import com.josephhieu.orderservice.entity.Order;
 import com.josephhieu.orderservice.entity.OrderItem;
+import com.josephhieu.orderservice.exception.ResourceNotFoundException;
 import com.josephhieu.orderservice.repository.OrderRepository;
 import com.josephhieu.orderservice.security.CustomUserDetails;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -125,5 +127,35 @@ public class OrderService {
     }
 
 
-    // (Bạn có thể thêm các hàm GET /api/orders/my-history ở đây)
+    /**
+     * API: GET /api/orders/my-history
+     * Lấy lịch sử đơn hàng của user đang đăng nhập
+     */
+    public List<Order> getMyOrderHistory(CustomUserDetails user) {
+        // Gọi thẳng hàm repository với ID của user đã đăng nhập
+        return orderRepository.findAllByCustomerIdOrderByCreatedAtDesc(user.getId());
+    }
+
+    /**
+     * API: GET /api/orders/{id}
+     * Lấy chi tiết 1 đơn hàng VÀ kiểm tra quyền sở hữu
+     */
+    public Order getOrderById(Integer orderId, CustomUserDetails user) {
+        // 1. Tìm đơn hàng
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+
+        // 2. KIỂM TRA BẢO MẬT:
+        // User phải là Admin HOẶC là chủ của đơn hàng
+        boolean isAdmin = user.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ADMIN"));
+
+        if (!isAdmin && !order.getCustomerId().equals(user.getId())) {
+            // Nếu không phải Admin VÀ không phải chủ đơn hàng -> Từ chối
+            throw new AccessDeniedException("Bạn không có quyền xem đơn hàng này.");
+        }
+
+        // 3. Trả về đơn hàng (Bao gồm cả orderItems vì nó là EAGER)
+        return order;
+    }
 }

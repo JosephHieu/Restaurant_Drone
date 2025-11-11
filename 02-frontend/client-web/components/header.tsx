@@ -7,6 +7,7 @@ import CartModal from "./cart-modal";
 import UserProfileModal from "./user-profile-modal";
 import CheckoutModal from "./checkout-modal";
 import MyOrdersModal from "./my-orders-modal";
+import OrderDetailModal from "./order-detail-modal";
 import { useCart } from "@/context/cart-context";
 import { useAuth } from "@/context/auth-context";
 
@@ -19,10 +20,17 @@ export default function Header() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false); // <-- STATE MỚI
   const [isMyOrdersOpen, setIsMyOrdersOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
 
   const handleProceedToCheckout = () => {
     setIsCartOpen(false); // Đóng giỏ hàng
     setIsCheckoutOpen(true); // Mở thanh toán
+  };
+
+  // === 3. HÀM MỚI ĐỂ MỞ CHI TIẾT ===
+  const handleViewOrderDetails = (orderId: number) => {
+    setIsMyOrdersOpen(false); // Đóng danh sách
+    setSelectedOrderId(orderId); // Đặt ID
   };
 
   // Hàm này dùng khi nhấn "Thanh toán" (checkout) mà chưa đăng nhập
@@ -41,6 +49,11 @@ export default function Header() {
   const handleCheckoutSuccess = () => {
     setIsCheckoutOpen(false); // Đóng Checkout
     setIsMyOrdersOpen(true); // Mở Đơn hàng
+  };
+
+  const closeOrderDetailModal = () => {
+    setSelectedOrderId(null);
+    setIsMyOrdersOpen(true); // Mở lại danh sách
   };
 
   return (
@@ -133,6 +146,13 @@ export default function Header() {
       <MyOrdersModal
         isOpen={isMyOrdersOpen}
         onClose={() => setIsMyOrdersOpen(false)}
+        onViewDetails={handleViewOrderDetails} // <-- 5. TRUYỀN PROP XUỐNG
+      />
+
+      <OrderDetailModal
+        isOpen={selectedOrderId !== null} // <-- 6. MỞ KHI CÓ ID
+        onClose={closeOrderDetailModal}
+        orderId={selectedOrderId}
       />
     </>
   );

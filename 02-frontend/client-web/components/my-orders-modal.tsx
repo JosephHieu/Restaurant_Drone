@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/auth-context";
 import api from "@/services/api";
-import { Spin, Alert, Typography, Table, Tag, Modal } from "antd"; // <-- Dùng AntD
-import type { TableProps } from "antd";
-import { X } from "lucide-react"; // Icon của v0
+import { Spin, Alert, Typography, Table, Tag, Modal, Button } from "antd"; // <-- Sửa: Thêm Button
+import type { TableProps } from "antd"; // <-- Sửa: Xóa 'Image'
+import { EyeOutlined } from "@ant-design/icons"; // <-- Sửa: Thêm Icon
+import { X } from "lucide-react";
 
 const { Title } = Typography;
 
@@ -18,45 +19,68 @@ interface Order {
   createdAt: string;
 }
 
-// 2. ĐỊNH NGHĨA CỘT CHO BẢNG
-const columns: TableProps<Order>["columns"] = [
-  { title: "Mã Đơn", dataIndex: "orderId", key: "orderId" },
-  {
-    title: "Ngày Đặt",
-    dataIndex: "createdAt",
-    key: "createdAt",
-    render: (date: string) => new Date(date).toLocaleDateString("vi-VN"),
-  },
-  {
-    title: "Trạng thái",
-    dataIndex: "status",
-    key: "status",
-    render: (status: string) => {
-      let color = "geekblue"; // PENDING
-      if (status === "COMPLETED") color = "success";
-      if (status === "CANCELLED") color = "error";
-      if (status === "DELIVERING") color = "processing";
-      return <Tag color={color}>{status.toUpperCase()}</Tag>;
-    },
-  },
-  {
-    title: "Tổng cộng",
-    dataIndex: "totalPrice",
-    key: "totalPrice",
-    render: (price: number) => price.toLocaleString("vi-VN") + " đ",
-  },
-];
-
 interface MyOrdersModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onViewDetails: (orderId: number) => void;
 }
 
-export default function MyOrdersModal({ isOpen, onClose }: MyOrdersModalProps) {
+// 2. ĐỊNH NGHĨA CỘT CHO BẢNG
+// (Khối này đã được DI CHUYỂN VÀO BÊN TRONG component)
+
+export default function MyOrdersModal({
+  isOpen,
+  onClose,
+  onViewDetails,
+}: MyOrdersModalProps) {
   const { isAuthenticated } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // === 3. DI CHUYỂN KHỐI "COLUMNS" VÀO ĐÂY ===
+  // (Nó phải ở bên trong component để thấy 'onViewDetails')
+  const columns: TableProps<Order>["columns"] = [
+    { title: "Mã Đơn", dataIndex: "orderId", key: "orderId" },
+    {
+      title: "Ngày Đặt",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (date: string) => new Date(date).toLocaleDateString("vi-VN"),
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => {
+        let color = "geekblue"; // PENDING
+        if (status === "COMPLETED") color = "success";
+        if (status === "CANCELLED") color = "error";
+        if (status === "DELIVERING") color = "processing";
+        return <Tag color={color}>{status.toUpperCase()}</Tag>;
+      },
+    },
+    {
+      title: "Tổng cộng",
+      dataIndex: "totalPrice",
+      key: "totalPrice",
+      render: (price: number) => price.toLocaleString("vi-VN") + " đ",
+    },
+    {
+      title: "Hành động",
+      key: "action",
+      render: (_, record: Order) => (
+        // Bây giờ 'onViewDetails' đã được tìm thấy
+        <Button
+          icon={<EyeOutlined />}
+          onClick={() => onViewDetails(record.orderId)} // <-- GỌI HÀM
+        >
+          Xem chi tiết
+        </Button>
+      ),
+    },
+  ];
+  // ===========================================
 
   // 3. TẢI DỮ LIỆU ĐƠN HÀNG KHI MODAL MỞ
   useEffect(() => {
