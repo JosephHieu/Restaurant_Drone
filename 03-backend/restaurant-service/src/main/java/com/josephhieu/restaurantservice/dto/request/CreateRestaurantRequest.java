@@ -18,4 +18,6 @@ public class CreateRestaurantRequest {
     // (Cho phép Admin chỉ định ai là chủ)
     @NotNull
     private Integer ownerId;
+
+    private String coverImageUri;
 }

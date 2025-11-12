@@ -144,6 +144,8 @@ public class RestaurantService {
         Restaurant restaurant = modelMapper.map(request, Restaurant.class);
         restaurant.setOwnerId(request.getOwnerId());
         restaurant.setStatus("pending");
+        restaurant.setCoverImageUri(request.getCoverImageUri());
+
         return restaurantRepository.save(restaurant);
     }
 
@@ -241,6 +243,8 @@ public class RestaurantService {
         restaurant.setAddress(request.getAddress());
         restaurant.setOwnerId(request.getOwnerId());
         restaurant.setStatus(request.getStatus());
+        restaurant.setCoverImageUri(request.getCoverImageUri());
+
         return restaurantRepository.save(restaurant);
     }
 

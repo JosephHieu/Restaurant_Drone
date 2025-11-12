@@ -22,6 +22,8 @@ public class Restaurant {
     private String address;
     private Double rating;
     private String status;
+    @Column(name = "cover_image_uri")
+    private String coverImageUri;
 
     @Column(updatable = false)
     private LocalDateTime createdAt;

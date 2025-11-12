@@ -22,4 +22,6 @@ public class AdminUpdateRestaurantRequest {
 
     @NotBlank
     private String status; // Admin có thể đổi "open", "closed", "banned"
+
+    private String coverImageUri;
 }

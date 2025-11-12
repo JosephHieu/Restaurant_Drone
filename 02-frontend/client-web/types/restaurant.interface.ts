@@ -7,6 +7,7 @@ export interface Restaurant {
   address: string;
   rating: number;
   status: "pending" | "open" | "closed" | "banned";
+  coverImageUri?: string;
   createdAt: string;
   updatedAt: string;
 }
