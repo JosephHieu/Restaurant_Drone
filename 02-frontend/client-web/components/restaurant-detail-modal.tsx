@@ -102,13 +102,14 @@ export default function RestaurantDetailModal({
                 <>
                   {/* 1. Phần Banner/Thông tin Nhà hàng */}
                   <div className="relative mb-4">
-                    <Image
-                      src={getRestaurantImageUrl(restaurant?.coverImageUri)} // <-- 2. SỬA LẠI: Không truyền gì
-                      alt={restaurant.name}
-                      className="w-full h-48 object-cover rounded-lg"
-                      style={{ objectFit: "cover" }}
-                      preview={false}
-                    />
+                    <div style={{ textAlign: "center" }}>
+                      <Image
+                        src={getRestaurantImageUrl(restaurant?.coverImageUri)}
+                        alt={restaurant.name}
+                        className="h-48 object-cover rounded-lg"
+                        preview={false}
+                      />
+                    </div>
                     <Tag
                       color="green"
                       className="absolute top-4 left-4 font-bold"
