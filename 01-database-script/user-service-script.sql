@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS `carts` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. Bảng Cart Items
-CREATE TABLE IF NOT EXISTS `cart_items` 
+CREATE TABLE IF NOT EXISTS `cart_items` (
     `cart_item_id` INT AUTO_INCREMENT PRIMARY KEY,
     `cart_id` INT NOT NULL,
     `item_id` INT NOT NULL,
