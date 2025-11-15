@@ -21,9 +21,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import com.josephhieu.orderservice.client.dto.RestaurantDto; // <-- Import DTO
+import com.josephhieu.orderservice.dto.UpdateOrderStatusRequest; // <-- Import DTO
+import org.springframework.security.access.AccessDeniedException;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -157,5 +161,58 @@ public class OrderService {
 
         // 3. Trả về đơn hàng (Bao gồm cả orderItems vì nó là EAGER)
         return order;
+    }
+
+    /**
+     * API: GET /api/orders/restaurant/{restaurantId}
+     * Lấy các đơn hàng (chưa hoàn thành) cho 1 nhà hàng
+     */
+    public List<Order> getRestaurantOrders(Integer restaurantId, CustomUserDetails user) {
+        // 1. Kiểm tra bảo mật: User này có sở hữu nhà hàng này không?
+        checkRestaurantOwnership(restaurantId, user);
+
+        // 2. Lấy các đơn hàng đang 'Chờ' (PENDING) hoặc 'Đang chuẩn bị' (CONFIRMED)
+        List<String> statusesToFetch = Arrays.asList("PENDING", "CONFIRMED");
+
+        return orderRepository.findAllByRestaurantIdAndStatusInOrderByCreatedAtAsc(restaurantId, statusesToFetch);
+    }
+
+    /**
+     * API: PUT /api/orders/{id}/status
+     * Cập nhật trạng thái đơn hàng (do Chủ nhà hàng thực hiện)
+     */
+    @Transactional
+    public Order updateOrderStatus(Integer orderId, UpdateOrderStatusRequest request, CustomUserDetails user) {
+        // 1. Tìm đơn hàng
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+
+        // 2. Kiểm tra bảo mật: User này có sở hữu nhà hàng của đơn hàng này không?
+        checkRestaurantOwnership(order.getRestaurantId(), user);
+
+        // 3. Cập nhật trạng thái
+        // (Thêm logic kiểm tra: Ví dụ, không cho phép đổi từ PENDING sang READY)
+        order.setStatus(request.getStatus());
+
+        // TODO: Nếu status là "READY_FOR_DELIVERY",
+        // bạn sẽ gửi tin nhắn (RabbitMQ) cho DroneService ở đây
+
+        return orderRepository.save(order);
+    }
+
+    // === HÀM TIỆN ÍCH BẢO MẬT ===
+
+    private void checkRestaurantOwnership(Integer restaurantId, CustomUserDetails user) {
+        // Gọi API (nội bộ) sang RestaurantService để lấy thông tin quán
+        // (API này không cần token vì nó là public GET)
+        RestaurantDto restaurant = restaurantClient.getRestaurantById(restaurantId);
+
+        // Nếu user không phải là Admin VÀ không phải là chủ sở hữu
+        boolean isAdmin = user.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ADMIN"));
+
+        if (!isAdmin && !restaurant.getOwnerId().equals(user.getId())) {
+            throw new AccessDeniedException("Bạn không có quyền truy cập đơn hàng của nhà hàng này.");
+        }
     }
 }

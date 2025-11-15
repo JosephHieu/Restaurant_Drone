@@ -2,6 +2,7 @@ package com.josephhieu.orderservice.controller;
 
 import com.josephhieu.orderservice.dto.OrderRequest;
 import com.josephhieu.orderservice.dto.OrderResponseDto;
+import com.josephhieu.orderservice.dto.UpdateOrderStatusRequest;
 import com.josephhieu.orderservice.entity.Order;
 import com.josephhieu.orderservice.security.CustomUserDetails;
 import com.josephhieu.orderservice.service.OrderService;
@@ -58,5 +59,32 @@ public class OrderController {
 
         Order order = orderService.getOrderById(id, user);
         return ResponseEntity.ok(order);
+    }
+
+    /**
+     * API cho Chủ nhà hàng lấy danh sách đơn hàng (cho Kanban Board)
+     */
+    @GetMapping("/restaurant/{restaurantId}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'RESTAURANT_OWNER')")
+    public ResponseEntity<List<Order>> getRestaurantOrders(
+            @PathVariable Integer restaurantId,
+            @AuthenticationPrincipal CustomUserDetails user) {
+
+        List<Order> orders = orderService.getRestaurantOrders(restaurantId, user);
+        return ResponseEntity.ok(orders);
+    }
+
+    /**
+     * API cho Chủ nhà hàng cập nhật trạng thái (Xác nhận / Sẵn sàng)
+     */
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'RESTAURANT_OWNER')")
+    public ResponseEntity<Order> updateOrderStatus(
+            @PathVariable Integer id,
+            @Valid @RequestBody UpdateOrderStatusRequest request,
+            @AuthenticationPrincipal CustomUserDetails user) {
+
+        Order updatedOrder = orderService.updateOrderStatus(id, request, user);
+        return ResponseEntity.ok(updatedOrder);
     }
 }
