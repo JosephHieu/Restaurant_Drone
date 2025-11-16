@@ -87,4 +87,16 @@ public class OrderController {
         Order updatedOrder = orderService.updateOrderStatus(id, request, user);
         return ResponseEntity.ok(updatedOrder);
     }
+
+    /**
+     * API cho ADMIN lấy TẤT CẢ đơn hàng
+     */
+    @GetMapping("/all")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<List<Order>> getAllOrders(
+            @AuthenticationPrincipal CustomUserDetails user) {
+
+        List<Order> orders = orderService.getAllOrdersForAdmin(user);
+        return ResponseEntity.ok(orders);
+    }
 }

@@ -12,12 +12,16 @@ import {
   InputNumber,
   Spin, // <-- 1. IMPORT Spin
   Image, // <-- 2. IMPORT Image
+  Space,
 } from "antd";
+
+import { AimOutlined } from "@ant-design/icons";
 import api from "../services/api";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 
 const { Title } = Typography;
+const { Search } = Input;
 
 // 3. SỬA INTERFACE: Thêm trường ảnh (không bắt buộc)
 interface AddRestaurantFormData {
@@ -27,6 +31,8 @@ interface AddRestaurantFormData {
   address: string;
   ownerId: number;
   coverImageUri?: string; // <-- Thêm trường này
+  latitude: number;
+  longitude: number;
 }
 
 // Kiểu cho lỗi
@@ -44,6 +50,63 @@ const AdminRestaurantAddPage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  const [isGeocoding, setIsGeocoding] = useState(false);
+
+  const handleGeocode = async (address: string) => {
+    console.log("Bắt đầu tìm tọa độ cho:", address); // <-- LOG 1
+    if (!address) {
+      message.error("Vui lòng nhập địa chỉ trước khi tìm.");
+      return;
+    }
+
+    setIsGeocoding(true);
+    setError(null);
+
+    // KHÔNG CẦN API KEY
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+      address
+    )}&format=json&limit=1`; // Lấy 1 kết quả
+
+    try {
+      console.log("Đang gọi API:", url); // <-- LOG 2
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "FoodFast-Admin-Web (do-an-tot-nghiep)",
+        },
+      });
+
+      console.log("Đã nhận được phản hồi (response):", response); // <-- LOG 3
+
+      const data = await response.json();
+      console.log("Đã phân tích JSON (data):", data); // <-- LOG 4
+
+      if (data && data.length > 0) {
+        const location = data[0];
+        console.log("Tìm thấy vị trí:", location); // <-- LOG 5
+
+        const lat = parseFloat(location.lat);
+        const lon = parseFloat(location.lon);
+
+        console.log(`Đã phân tích Lat: ${lat}, Lon: ${lon}`); // <-- LOG 6
+
+        // Tự động điền form
+        form.setFieldsValue({
+          latitude: parseFloat(location.lat), // Dùng parseFloat
+          longitude: parseFloat(location.lon), // Nominatim dùng 'lon'
+        });
+
+        message.success("Đã tìm thấy tọa độ!");
+      } else {
+        message.error("Không tìm thấy tọa độ cho địa chỉ này.");
+      }
+    } catch (err) {
+      message.error("Lỗi khi gọi API Geocoding (Nominatim).");
+      console.error(err);
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
+
   // 5. HÀM XỬ LÝ CHỌN FILE
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files ? e.target.files[0] : null;
@@ -55,6 +118,44 @@ const AdminRestaurantAddPage: React.FC = () => {
       setSelectedFile(null);
       setPreviewUrl(null);
     }
+  };
+
+  // --- BỔ SUNG: HÀM LẤY VỊ TRÍ (TỪ CODE CỦA BẠN) ---
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      message.error("Trình duyệt không hỗ trợ Geolocation");
+      return;
+    }
+
+    // Thêm thông báo loading
+    const key = "geolocation";
+    message.loading({ content: "Đang lấy vị trí...", key });
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        // Tự động điền vào form
+        form.setFieldsValue({
+          latitude: lat,
+          longitude: lng,
+        });
+
+        message.success({
+          content: "Đã lấy vị trí hiện tại!",
+          key,
+          duration: 2,
+        });
+      },
+      (err) => {
+        message.error({
+          content: "Không lấy được vị trí: " + err.message,
+          key,
+          duration: 3,
+        });
+      }
+    );
   };
 
   // 6. SỬA HÀM "onFinish" (Thêm logic upload)
@@ -86,6 +187,8 @@ const AdminRestaurantAddPage: React.FC = () => {
       const finalData = {
         ...values,
         coverImageUri: finalImageUri, // Gán tên file ảnh bìa
+        latitude: values.latitude, // <-- BỔ SUNG
+        longitude: values.longitude,
       };
 
       await api.post("/api/restaurants", finalData);
@@ -153,7 +256,62 @@ const AdminRestaurantAddPage: React.FC = () => {
                 label="Địa chỉ"
                 rules={[{ required: true, message: "Vui lòng nhập địa chỉ!" }]}
               >
-                <Input />
+                <Search
+                  placeholder="Nhập địa chỉ (ví dụ: 123 Lê Lợi, Quận 1)"
+                  enterButton="Tìm tọa độ"
+                  size="large"
+                  onSearch={handleGeocode} // Gọi hàm khi nhấn nút hoặc Enter
+                  loading={isGeocoding} // Hiển thị trạng thái loading
+                />
+              </Form.Item>
+
+              {/* === SỬA KHỐI TỌA ĐỘ === */}
+              <Form.Item label="Tọa độ GPS">
+                <Space direction="vertical" style={{ width: "100%" }}>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        name="latitude"
+                        label="Vĩ độ (Latitude)"
+                        rules={[
+                          { required: true, message: "Vui lòng tìm tọa độ!" },
+                        ]}
+                      >
+                        <InputNumber
+                          style={{ width: "100%" }}
+                          placeholder="Sẽ được điền tự động"
+                          precision={8} // 8 chữ số thập phân
+                          readOnly // Không cho người dùng nhập trực tiếp
+                        />
+                      </Form.Item>
+                    </Col>
+
+                    <Col span={12}>
+                      <Form.Item
+                        name="longitude"
+                        label="Kinh độ (Longitude)"
+                        rules={[
+                          { required: true, message: "Vui lòng tìm tọa độ!" },
+                        ]}
+                      >
+                        <InputNumber
+                          style={{ width: "100%" }}
+                          placeholder="Sẽ được điền tự động"
+                          precision={8}
+                          readOnly // Chỉ auto-fill từ geocode
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Button
+                    icon={<AimOutlined />}
+                    onClick={getCurrentLocation}
+                    style={{ marginTop: 8 }}
+                  >
+                    Lấy vị trí hiện tại
+                  </Button>
+                </Space>
               </Form.Item>
 
               {/* === 8. THÊM KHỐI UPLOAD ẢNH === */}

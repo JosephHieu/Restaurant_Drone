@@ -61,7 +61,14 @@ public class VnPayService {
         vnp_Params.put("vnp_OrderType", "other");
         vnp_Params.put("vnp_Locale", "vn");
         vnp_Params.put("vnp_ReturnUrl", returnUrl); // URL Frontend
-        vnp_Params.put("vnp_IpAddr", clientIp);
+
+        String finalClientIp = clientIp;
+        // Kiểm tra nếu IP là null, rỗng, hoặc là địa chỉ localhost (không hợp lệ)
+        if (finalClientIp == null || finalClientIp.isEmpty() || finalClientIp.equals("127.0.0.1") || finalClientIp.equals("0:0:0:0:0:0:0:1")) {
+            finalClientIp = "8.8.8.8"; // Dùng IP test (Google DNS)
+        }
+        vnp_Params.put("vnp_IpAddr", finalClientIp);
+
         vnp_Params.put("vnp_IpnURL", ipnUrl); // URL Backend (ngrok)
 
         // Đặt thời gian

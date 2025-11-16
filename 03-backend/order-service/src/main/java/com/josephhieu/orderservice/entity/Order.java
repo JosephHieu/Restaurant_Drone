@@ -21,6 +21,7 @@ public class Order {
     private String deliveryAddress;
     private String status;
     private String paymentMethod;
+    private Integer deliveryId; // ID của chuyến giao (từ DroneService)
 
     @Column(updatable = false)
     private LocalDateTime createdAt;

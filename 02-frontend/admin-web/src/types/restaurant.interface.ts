@@ -5,6 +5,8 @@ export interface Restaurant {
   description: string;
   phone: string;
   address: string;
+  latitude: number;
+  longitude: number;
   rating: number;
   status: "pending" | "open" | "closed";
   coverImageUri?: string;

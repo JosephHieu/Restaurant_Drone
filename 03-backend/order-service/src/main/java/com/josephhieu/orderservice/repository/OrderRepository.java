@@ -21,4 +21,10 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
      * Sắp xếp theo đơn hàng cũ nhất (để xử lý trước)
      */
     List<Order> findAllByRestaurantIdAndStatusInOrderByCreatedAtAsc(Integer restaurantId, List<String> statuses);
+
+    /**
+     * Lấy tất cả đơn hàng trong hệ thống (dành cho Admin)
+     * Sắp xếp theo đơn hàng mới nhất
+     */
+    List<Order> findAllByOrderByCreatedAtDesc();
 }

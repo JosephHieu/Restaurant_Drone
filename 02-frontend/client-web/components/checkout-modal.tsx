@@ -6,6 +6,7 @@ import { useAuth } from "@/context/auth-context";
 import { useCart } from "@/context/cart-context";
 import api from "@/services/api";
 import { Alert, Button, message, Radio, Space, Spin } from "antd"; // Dùng AntD cho message và Spin
+import { AimOutlined } from "@ant-design/icons";
 import { AxiosError } from "axios";
 
 // Kiểu DTO trả về (khớp với OrderResponseDto của backend)
@@ -41,6 +42,11 @@ export default function CheckoutModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [customerCoordinates, setCustomerCoordinates] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+
   // Tải dữ liệu user (vì user có thể được tải sau)
   useEffect(() => {
     if (isOpen && user) {
@@ -49,6 +55,7 @@ export default function CheckoutModal({
         phone: user.phone,
         deliveryAddress: user.address,
       });
+      setCustomerCoordinates(null);
     }
   }, [user, isOpen]); // Chạy lại khi modal mở
 
@@ -60,6 +67,38 @@ export default function CheckoutModal({
       return total + (item.price || 0) * item.quantity;
     }, 0);
   }, [cart]);
+
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      message.error("Trình duyệt không hỗ trợ Geolocation");
+      return;
+    }
+
+    const key = "geolocation_customer";
+    message.loading({ content: "Đang lấy vị trí của bạn...", key });
+    setError(""); // Xóa lỗi cũ
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        // Cập nhật state tọa độ
+        setCustomerCoordinates({ lat, lng });
+
+        message.success({
+          content: "Đã lấy vị trí thành công!",
+          key,
+          duration: 2,
+        });
+      },
+      (err) => {
+        // Hiển thị lỗi trong Alert
+        setError("Không lấy được vị trí: " + err.message);
+        message.error({ content: "Không lấy được vị trí.", key, duration: 3 });
+      }
+    );
+  };
 
   // === HÀM "XÁC NHẬN ĐẶT HÀNG" ===
   const handleSubmitOrder = async (e: React.FormEvent) => {
@@ -73,6 +112,14 @@ export default function CheckoutModal({
       return;
     }
 
+    // SỬA: Kiểm tra tọa độ
+    if (!customerCoordinates) {
+      setError(
+        "Vui lòng nhấn 'Lấy vị trí của tôi' để xác nhận tọa độ giao hàng."
+      );
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
@@ -81,6 +128,8 @@ export default function CheckoutModal({
       const response = await api.post<OrderResponse>("/api/orders", {
         deliveryAddress: formData.deliveryAddress,
         paymentMethod: paymentMethod,
+        deliveryLat: customerCoordinates.lat,
+        deliveryLng: customerCoordinates.lng,
       });
 
       // 2. Xử lý kết quả
@@ -200,17 +249,45 @@ export default function CheckoutModal({
                           />
                           <textarea
                             value={formData.deliveryAddress}
-                            onChange={(e) =>
+                            onChange={(e) => {
                               setFormData({
                                 ...formData,
                                 deliveryAddress: e.target.value,
-                              })
-                            }
+                              });
+                              setCustomerCoordinates(null); // Reset tọa độ
+                              setError(""); // Xóa lỗi
+                            }}
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
                             rows={3}
                             required
                           />
                         </div>
+                      </div>
+
+                      {/* Nút lấy tọa độ */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Tọa độ GPS (Bắt buộc)
+                        </label>
+
+                        <Button
+                          type="dashed"
+                          icon={<AimOutlined />}
+                          onClick={getCurrentLocation}
+                        >
+                          Lấy vị trí của tôi
+                        </Button>
+
+                        {customerCoordinates && (
+                          <Alert
+                            message={`Đã lấy tọa độ: ${customerCoordinates.lat.toFixed(
+                              4
+                            )}, ${customerCoordinates.lng.toFixed(4)}`}
+                            type="success"
+                            showIcon
+                            style={{ marginTop: 8 }}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>

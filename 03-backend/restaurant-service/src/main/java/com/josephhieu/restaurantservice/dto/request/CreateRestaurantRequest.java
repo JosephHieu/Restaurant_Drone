@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Data
 public class CreateRestaurantRequest {
     @NotBlank
@@ -13,6 +15,11 @@ public class CreateRestaurantRequest {
     private String phone;
     @NotBlank
     private String address;
+
+    @NotNull
+    private BigDecimal latitude;
+    @NotNull
+    private BigDecimal longitude;
 
     // === THÊM DÒNG NÀY ===
     // (Cho phép Admin chỉ định ai là chủ)
