@@ -21,7 +21,7 @@ public class VnPayService {
     @Autowired
     private PaymentRepository paymentRepository;
 
-    // Lấy config từ application.properties (giữ nguyên)
+    // Lấy config từ application.yml (giữ nguyên)
     @Value("${vnpay.tmnCode}")
     private String tmnCode;
     @Value("${vnpay.hashSecret}")
