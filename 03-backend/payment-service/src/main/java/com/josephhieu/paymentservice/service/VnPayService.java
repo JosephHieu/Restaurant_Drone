@@ -1,6 +1,6 @@
 package com.josephhieu.paymentservice.service;
 
-import com.josephhieu.paymentservice.config.VnPayConfig;
+import com.josephhieu.paymentservice.config.VnPayConfig; // <-- Dùng config mới
 import com.josephhieu.paymentservice.entity.Payment;
 import com.josephhieu.paymentservice.repository.PaymentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +21,7 @@ public class VnPayService {
     @Autowired
     private PaymentRepository paymentRepository;
 
-    // Lấy config từ application.yml
+    // Lấy config từ application.properties (giữ nguyên)
     @Value("${vnpay.tmnCode}")
     private String tmnCode;
     @Value("${vnpay.hashSecret}")
@@ -36,40 +36,38 @@ public class VnPayService {
     @Transactional
     public String createVnPayPayment(Integer orderId, BigDecimal amount, String clientIp) {
 
-        // 1. Tạo bản ghi Payment trong CSDL (status: PENDING)
+        // 1. Tạo bản ghi Payment trong CSDL
         Payment payment = new Payment();
         payment.setOrderId(orderId);
         payment.setAmount(amount);
         payment.setMethod("VNPAY");
         payment.setStatus("PENDING");
-        paymentRepository.save(payment);
+        paymentRepository.save(payment); // Lưu để lấy paymentId
 
-        // 2. Xây dựng tham số cho VNPay
+        // 2. Xây dựng tham số cho VNPay (Theo ajaxServlet.java)
         Map<String, String> vnp_Params = new HashMap<>();
         vnp_Params.put("vnp_Version", "2.1.0");
         vnp_Params.put("vnp_Command", "pay");
         vnp_Params.put("vnp_TmnCode", tmnCode);
 
-        // VNPay yêu cầu nhân 100 (vì họ không dùng số thập phân)
+        // Nhân 100 (đã đúng)
         long vnpAmount = amount.multiply(new BigDecimal(100)).longValue();
         vnp_Params.put("vnp_Amount", String.valueOf(vnpAmount));
         vnp_Params.put("vnp_CurrCode", "VND");
 
-        // Dùng ID của bảng Payment (ví dụ: 1, 2, 3) làm mã giao dịch
+        // Không có bankCode (Thanh toán qua cổng VNPAY)
+
         vnp_Params.put("vnp_TxnRef", String.valueOf(payment.getPaymentId()));
         vnp_Params.put("vnp_OrderInfo", "Thanh toan don hang " + orderId);
         vnp_Params.put("vnp_OrderType", "other");
+
         vnp_Params.put("vnp_Locale", "vn");
-        vnp_Params.put("vnp_ReturnUrl", returnUrl); // URL Frontend
+        vnp_Params.put("vnp_ReturnUrl", returnUrl); // URL Frontend (từ config)
 
-        String finalClientIp = clientIp;
-        // Kiểm tra nếu IP là null, rỗng, hoặc là địa chỉ localhost (không hợp lệ)
-        if (finalClientIp == null || finalClientIp.isEmpty() || finalClientIp.equals("127.0.0.1") || finalClientIp.equals("0:0:0:0:0:0:0:1")) {
-            finalClientIp = "8.8.8.8"; // Dùng IP test (Google DNS)
-        }
-        vnp_Params.put("vnp_IpAddr", finalClientIp);
+        // SỬA LỖI IP: Dùng 127.0.0.1 (Sandbox chấp nhận IP này)
+        vnp_Params.put("vnp_IpAddr", "127.0.0.1");
 
-        vnp_Params.put("vnp_IpnURL", ipnUrl); // URL Backend (ngrok)
+        vnp_Params.put("vnp_IpnURL", ipnUrl); // URL Backend (từ config)
 
         // Đặt thời gian
         Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
@@ -79,7 +77,7 @@ public class VnPayService {
         cld.add(Calendar.MINUTE, 15); // Hết hạn sau 15 phút
         vnp_Params.put("vnp_ExpireDate", formatter.format(cld.getTime()));
 
-        // 3. Tạo URL thanh toán (đã bao gồm chữ ký HASH)
+        // 3. Tạo URL thanh toán (Gọi hàm đã sửa)
         String paymentUrl = VnPayConfig.getPaymentUrl(vnp_Params, hashSecret, vnpUrl);
 
         return paymentUrl;
