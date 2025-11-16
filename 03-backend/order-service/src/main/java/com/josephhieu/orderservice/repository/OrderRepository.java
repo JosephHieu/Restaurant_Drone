@@ -2,8 +2,11 @@ package com.josephhieu.orderservice.repository;
 
 import com.josephhieu.orderservice.entity.Order;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
@@ -27,4 +30,31 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
      * Sắp xếp theo đơn hàng mới nhất
      */
     List<Order> findAllByOrderByCreatedAtDesc();
+
+    /**
+     * Đếm số lượng đơn hàng theo trạng thái
+     */
+    long countByStatus(String status);
+
+    /**
+     * Tính tổng doanh thu từ các đơn hàng đã HOÀN THÀNH
+     */
+    @Query("SELECT SUM(o.totalPrice) FROM Order o WHERE o.status = 'COMPLETED'")
+    BigDecimal findTotalRevenue();
+
+    /**
+     * Đếm tổng số đơn hàng của 1 nhà hàng
+     */
+    long countByRestaurantId(Integer restaurantId);
+
+    /**
+     * Đếm số đơn hàng theo trạng thái CỦA 1 nhà hàng
+     */
+    long countByRestaurantIdAndStatus(Integer restaurantId, String status);
+
+    /**
+     * Tính tổng doanh thu (đơn COMPLETED) CỦA 1 nhà hàng
+     */
+    @Query("SELECT SUM(o.totalPrice) FROM Order o WHERE o.restaurantId = :restaurantId AND o.status = 'COMPLETED'")
+    BigDecimal findTotalRevenueByRestaurantId(@Param("restaurantId") Integer restaurantId);
 }

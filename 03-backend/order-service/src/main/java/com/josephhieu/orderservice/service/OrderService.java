@@ -5,9 +5,7 @@ import com.josephhieu.orderservice.client.RestaurantClient;
 import com.josephhieu.orderservice.client.UserClient;
 import com.josephhieu.orderservice.client.PaymentClient;
 import com.josephhieu.orderservice.client.dto.*;
-import com.josephhieu.orderservice.dto.OrderRequest;
-import com.josephhieu.orderservice.dto.OrderResponseDto;
-import com.josephhieu.orderservice.dto.UpdateOrderStatusRequest;
+import com.josephhieu.orderservice.dto.*;
 import com.josephhieu.orderservice.entity.Order;
 import com.josephhieu.orderservice.entity.OrderItem;
 import com.josephhieu.orderservice.exception.ResourceNotFoundException;
@@ -232,5 +230,44 @@ public class OrderService {
         if (!isAdmin && !restaurant.getOwnerId().equals(user.getId())) {
             throw new AccessDeniedException("Bạn không có quyền truy cập đơn hàng của nhà hàng này.");
         }
+    }
+
+    /**
+     * Lấy thống kê Dashboard cho Admin
+     */
+    public OrderStatsDto getDashboardStats() {
+        long totalOrders = orderRepository.count();
+        long pendingOrders = orderRepository.countByStatus("PENDING");
+        long deliveringOrders = orderRepository.countByStatus("DELIVERING");
+
+        // Lấy doanh thu, nếu null (chưa có đơn nào) thì trả về 0
+        BigDecimal totalRevenue = orderRepository.findTotalRevenue();
+        if (totalRevenue == null) {
+            totalRevenue = BigDecimal.ZERO;
+        }
+
+        return new OrderStatsDto(totalOrders, pendingOrders, deliveringOrders, totalRevenue);
+    }
+
+    /**
+     * Lấy thống kê Dashboard cho 1 Nhà hàng
+     */
+    public RestaurantStatsDto getRestaurantDashboardStats(Integer restaurantId, CustomUserDetails user) {
+
+        // BƯỚC 1: KIỂM TRA QUYỀN SỞ HỮU (RẤT QUAN TRỌNG)
+        // Dùng lại hàm cũ mà bạn đã có
+        checkRestaurantOwnership(restaurantId, user);
+
+        // BƯỚC 2: LẤY SỐ LIỆU
+        long total = orderRepository.countByRestaurantId(restaurantId);
+        long pending = orderRepository.countByRestaurantIdAndStatus(restaurantId, "PENDING");
+        long delivering = orderRepository.countByRestaurantIdAndStatus(restaurantId, "DELIVERING");
+
+        BigDecimal revenue = orderRepository.findTotalRevenueByRestaurantId(restaurantId);
+        if (revenue == null) {
+            revenue = BigDecimal.ZERO;
+        }
+
+        return new RestaurantStatsDto(total, pending, delivering, revenue);
     }
 }

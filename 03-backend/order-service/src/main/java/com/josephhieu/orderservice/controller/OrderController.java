@@ -1,8 +1,6 @@
 package com.josephhieu.orderservice.controller;
 
-import com.josephhieu.orderservice.dto.OrderRequest;
-import com.josephhieu.orderservice.dto.OrderResponseDto;
-import com.josephhieu.orderservice.dto.UpdateOrderStatusRequest;
+import com.josephhieu.orderservice.dto.*;
 import com.josephhieu.orderservice.entity.Order;
 import com.josephhieu.orderservice.security.CustomUserDetails;
 import com.josephhieu.orderservice.service.OrderService;
@@ -98,5 +96,28 @@ public class OrderController {
 
         List<Order> orders = orderService.getAllOrdersForAdmin(user);
         return ResponseEntity.ok(orders);
+    }
+
+    /**
+     * API cho ADMIN lấy thống kê Dashboard
+     */
+    @GetMapping("/stats")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<OrderStatsDto> getOrderStats() {
+        OrderStatsDto stats = orderService.getDashboardStats();
+        return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * API cho CHỦ NHÀ HÀNG (hoặc Admin) lấy thống kê của 1 nhà hàng
+     */
+    @GetMapping("/restaurant-stats/{restaurantId}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'RESTAURANT_OWNER')")
+    public ResponseEntity<RestaurantStatsDto> getRestaurantStats(
+            @PathVariable Integer restaurantId,
+            @AuthenticationPrincipal CustomUserDetails user) {
+
+        RestaurantStatsDto stats = orderService.getRestaurantDashboardStats(restaurantId, user);
+        return ResponseEntity.ok(stats);
     }
 }
