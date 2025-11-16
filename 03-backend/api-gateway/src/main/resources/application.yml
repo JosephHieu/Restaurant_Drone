@@ -3,55 +3,66 @@ server:
 
 spring:
   application:
-    name: API-GATEWAY
+    name: API-GATEWAY # Tên của Gateway trên Eureka
 
   cloud:
     gateway:
-
-      httpclient:
-        max-in-memory-size: 10485760
-
       routes:
-        # USER SERVICE
+        # 1. USER SERVICE (Đã có)
         - id: user-service
           uri: lb://USER-SERVICE
           predicates:
-            - Path=/api/users/**,/api/auth/**,/api/cart/**
+            - Path=/api/users/**, /api/auth/**, /api/cart/**
 
-        # RESTAURANT STATIC FILES
+        # 2. RESTAURANT - ẢNH TĨNH (Đã có)
         - id: restaurant-static-assets
           uri: lb://RESTAURANT-SERVICE
           predicates:
             - Path=/api/restaurants/images/**
           filters:
+            # Viết lại: /api/restaurants/images/foo.jpg -> /images/foo.jpg
             - RewritePath=/api/restaurants/images/(?<remaining>.*), /images/$\{remaining}
 
-        # RESTAURANT API
+        # 3. RESTAURANT - API (Đã có)
         - id: restaurant-api
           uri: lb://RESTAURANT-SERVICE
           predicates:
-            - Path=/api/restaurants/**,/api/menu-items/**
+            - Path=/api/restaurants/**, /api/menu-items/**
 
-        # ORDER SERVICE
+        # 4. ORDER SERVICE (MỚI)
         - id: order-service
           uri: lb://ORDER-SERVICE
           predicates:
             - Path=/api/orders/**
 
-        # PAYMENT SERVICE
+        # 5. PAYMENT SERVICE (MỚI)
         - id: payment-service
           uri: lb://PAYMENT-SERVICE
           predicates:
             - Path=/api/payments/**
 
-        # DRONE SERVICE
-        - id: drone-service
+        # 6. DRONE SERVICE - API (MỚI)
+        # (Dùng cho Admin và giao tiếp nội bộ)
+        - id: drone-api
           uri: lb://DRONE-SERVICE
           predicates:
-            - Path=/api/drones/**
+            - Path=/api/drones/**, /api/deliveries/**
 
+        # 7. DRONE SERVICE - WEBSOCKET (RẤT QUAN TRỌNG)
+        - id: drone-websocket
+          # Dùng "lb:ws://" (Load Balancer WebSocket)
+          uri: lb:ws://DRONE-SERVICE
+          predicates:
+            # Lắng nghe đường dẫn mà frontend sẽ kết nối
+            - Path=/api/drones/ws/**
+          filters:
+            # Viết lại: /api/drones/ws/... -> /ws/...
+            # (Để khớp với @StompEndpointRegistry("/ws") trong WebSocketConfig.java)
+            - RewritePath=/api/drones/(?<remaining>.*), /$\{remaining}
 
 eureka:
+  instance:
+    hostname: localhost
   client:
     serviceUrl:
       defaultZone: http://localhost:8761/eureka/

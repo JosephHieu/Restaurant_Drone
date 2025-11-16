@@ -66,6 +66,8 @@ public class RestaurantService {
         restaurant.setDescription(request.getDescription());
         restaurant.setPhone(request.getPhone());
         restaurant.setAddress(request.getAddress());
+        restaurant.setLatitude(request.getLatitude());
+        restaurant.setLongitude(request.getLongitude());
         if (request.getStatus() != null && (request.getStatus().equals("open") || request.getStatus().equals("closed"))) {
             restaurant.setStatus(request.getStatus());
         }
@@ -96,6 +98,8 @@ public class RestaurantService {
         restaurant.setDescription(request.getDescription());
         restaurant.setPhone(request.getPhone());
         restaurant.setAddress(request.getAddress());
+        restaurant.setLatitude(request.getLatitude());
+        restaurant.setLongitude(request.getLongitude());
         if (request.getStatus().equals("open") || request.getStatus().equals("closed")) {
             restaurant.setStatus(request.getStatus());
         }
@@ -145,6 +149,9 @@ public class RestaurantService {
         restaurant.setOwnerId(request.getOwnerId());
         restaurant.setStatus("pending");
         restaurant.setCoverImageUri(request.getCoverImageUri());
+
+        restaurant.setLatitude(request.getLatitude());
+        restaurant.setLongitude(request.getLongitude());
 
         return restaurantRepository.save(restaurant);
     }
@@ -241,6 +248,8 @@ public class RestaurantService {
         restaurant.setDescription(request.getDescription());
         restaurant.setPhone(request.getPhone());
         restaurant.setAddress(request.getAddress());
+        restaurant.setLatitude(request.getLatitude());
+        restaurant.setLongitude(request.getLongitude());
         restaurant.setOwnerId(request.getOwnerId());
         restaurant.setStatus(request.getStatus());
         restaurant.setCoverImageUri(request.getCoverImageUri());

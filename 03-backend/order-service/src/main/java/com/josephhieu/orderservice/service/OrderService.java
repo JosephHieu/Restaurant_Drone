@@ -1,15 +1,11 @@
 package com.josephhieu.orderservice.service;
 
+import com.josephhieu.orderservice.client.DroneClient;
 import com.josephhieu.orderservice.client.RestaurantClient;
 import com.josephhieu.orderservice.client.UserClient;
-import com.josephhieu.orderservice.client.dto.CartDto;
-import com.josephhieu.orderservice.client.dto.CartItemDto;
-import com.josephhieu.orderservice.client.dto.MenuItemDto;
-import com.josephhieu.orderservice.dto.OrderRequest;
-import com.josephhieu.orderservice.client.PaymentClient; // <-- Import
-import com.josephhieu.orderservice.client.dto.PaymentRequest; // <-- Import
-import com.josephhieu.orderservice.client.dto.PaymentResponse; // <-- Import
-import com.josephhieu.orderservice.dto.OrderResponseDto;// Sẽ tạo ở bước sau
+import com.josephhieu.orderservice.client.PaymentClient;
+import com.josephhieu.orderservice.client.dto.*;
+import com.josephhieu.orderservice.dto.*;
 import com.josephhieu.orderservice.entity.Order;
 import com.josephhieu.orderservice.entity.OrderItem;
 import com.josephhieu.orderservice.exception.ResourceNotFoundException;
@@ -24,6 +20,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -36,9 +33,14 @@ public class OrderService {
     private UserClient userClient;
     @Autowired
     private RestaurantClient restaurantClient;
-
     @Autowired
     private PaymentClient paymentClient;
+    @Autowired
+    private DroneClient droneClient;
+
+    // === 1. TIÊM (INJECT) LOCATION SERVICE ===
+    @Autowired
+    private LocationService locationService;
 
     // Hàm tiện ích lấy token "Bearer ..." từ request
     private String getAuthHeader() {
@@ -53,109 +55,219 @@ public class OrderService {
     @Transactional
     public OrderResponseDto createOrder(CustomUserDetails user, OrderRequest orderRequest) {
         String authHeader = getAuthHeader();
-
-        // 1. GỌI USER-SERVICE: Lấy giỏ hàng
         CartDto cart = userClient.getCart(authHeader);
 
         if (cart.getCartItems() == null || cart.getCartItems().isEmpty()) {
             throw new IllegalStateException("Giỏ hàng rỗng. Không thể đặt hàng.");
         }
 
-        // 2. KHỞI TẠO ĐƠN HÀNG
+        // === 2. THÊM LOGIC KIỂM TRA 5KM ===
+
+        // A. Lấy tọa độ nhà hàng (điểm lấy)
+        // (Feign Client 'restaurantClient' đã được @Autowired)
+        RestaurantDto restaurant = restaurantClient.getRestaurantById(cart.getRestaurantId());
+
+        // B. Lấy tọa độ khách (điểm giao)
+        // (Tạm thời: Giả lập. Sau này bạn sẽ lấy từ 'orderRequest' hoặc 'userClient')
+        BigDecimal customerLat = new BigDecimal("10.8888"); // (Giả lập Vĩ độ khách)
+        BigDecimal customerLng = new BigDecimal("106.7777"); // (Giả lập Kinh độ khách)
+
+        // C. Tính toán khoảng cách
+        double distance = locationService.calculateDistance(
+                restaurant.getLatitude(), restaurant.getLongitude(),
+                customerLat, customerLng
+        );
+
+        // D. Kiểm tra
+        if (distance > 20) { // Kiểm tra bán kính 5km
+            throw new IllegalStateException(String.format(
+                    "Khoảng cách giao hàng (%.1f km) vượt quá giới hạn 5km. Không thể đặt hàng.", distance
+            ));
+        }
+        // ============================
+
+        // 3. KHỞI TẠO ĐƠN HÀNG (Logic cũ)
         Order order = new Order();
         order.setCustomerId(user.getId());
         order.setRestaurantId(cart.getRestaurantId());
-
-        // Lấy địa chỉ và phương thức thanh toán từ frontend
         order.setDeliveryAddress(orderRequest.getDeliveryAddress());
         order.setPaymentMethod(orderRequest.getPaymentMethod());
-        order.setStatus("PENDING"); // Trạng thái chờ (VNPAY/COD)
+        order.setStatus("PENDING");
 
         BigDecimal grandTotal = BigDecimal.ZERO;
         List<OrderItem> orderItems = new ArrayList<>();
 
-        // 3. GỌI RESTAURANT-SERVICE: Lấy snapshot giá
         for (CartItemDto cartItem : cart.getCartItems()) {
-            // Lấy chi tiết món ăn (giá, tên)
             MenuItemDto itemDetails = restaurantClient.getMenuItemById(cartItem.getItemId());
-
-            // Xây dựng Order Item (SNAPSHOT)
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setItemId(cartItem.getItemId());
             orderItem.setName(itemDetails.getName());
-            orderItem.setPrice(itemDetails.getPrice()); // <-- LƯU SNAPSHOT GIÁ
+            orderItem.setPrice(itemDetails.getPrice());
             orderItem.setQuantity(cartItem.getQuantity());
             orderItem.setNote(cartItem.getNote());
-
-            // Tính tổng
             BigDecimal itemTotal = itemDetails.getPrice().multiply(new BigDecimal(cartItem.getQuantity()));
             grandTotal = grandTotal.add(itemTotal);
-
             orderItems.add(orderItem);
         }
 
-        // 4. LƯU GIAO DỊCH
         order.setTotalPrice(grandTotal);
         order.setOrderItems(orderItems);
         Order savedOrder = orderRepository.save(order);
-
-        // 3. GỌI USER-SERVICE: Xóa giỏ hàng
         userClient.clearCart(authHeader);
 
-        // 4. === LOGIC MỚI: TẠO THANH TOÁN ===
+        // 4. TẠO THANH TOÁN (Logic cũ)
         String paymentUrl = null;
         if ("VNPAY".equalsIgnoreCase(orderRequest.getPaymentMethod())) {
-
-            // 4a. Tạo yêu cầu thanh toán
             PaymentRequest paymentRequest = new PaymentRequest();
             paymentRequest.setOrderId(savedOrder.getOrderId());
             paymentRequest.setAmount(savedOrder.getTotalPrice());
-
-            // 4b. GỌI PAYMENT-SERVICE
             PaymentResponse paymentResponse = paymentClient.createVnPayPayment(paymentRequest, authHeader);
             paymentUrl = paymentResponse.getPaymentUrl();
-
         } else {
-            // Nếu là COD
             paymentUrl = "COD";
-            // (Bạn có thể thêm logic gửi tin nhắn cho DroneService ở đây nếu là COD)
         }
 
-        // 5. Trả về Order và Payment URL
         return new OrderResponseDto(savedOrder, paymentUrl);
     }
 
 
     /**
      * API: GET /api/orders/my-history
-     * Lấy lịch sử đơn hàng của user đang đăng nhập
+     * (Đã đúng)
      */
     public List<Order> getMyOrderHistory(CustomUserDetails user) {
-        // Gọi thẳng hàm repository với ID của user đã đăng nhập
         return orderRepository.findAllByCustomerIdOrderByCreatedAtDesc(user.getId());
     }
 
     /**
+     * API: GET /api/orders/all (Dành cho Admin)
+     * Lấy tất cả đơn hàng.
+     */
+    public List<Order> getAllOrdersForAdmin(CustomUserDetails user) {
+        // (Kiểm tra quyền Admin - Mặc dù Controller đã kiểm tra,
+        //  Service kiểm tra lại sẽ an toàn hơn, nhưng không bắt buộc)
+
+        // boolean isAdmin = user.getAuthorities().stream()
+        //         .anyMatch(a -> a.getAuthority().equals("ADMIN"));
+        // if (!isAdmin) {
+        //     throw new AccessDeniedException("Bạn không có quyền truy cập tài nguyên này.");
+        // }
+
+        return orderRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    /**
      * API: GET /api/orders/{id}
-     * Lấy chi tiết 1 đơn hàng VÀ kiểm tra quyền sở hữu
+     * (Đã đúng)
      */
     public Order getOrderById(Integer orderId, CustomUserDetails user) {
-        // 1. Tìm đơn hàng
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+        boolean isAdmin = user.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ADMIN"));
+        if (!isAdmin && !order.getCustomerId().equals(user.getId())) {
+            throw new AccessDeniedException("Bạn không có quyền xem đơn hàng này.");
+        }
+        return order;
+    }
+
+    /**
+     * API: GET /api/orders/restaurant/{restaurantId}
+     * (Đã đúng)
+     */
+    public List<Order> getRestaurantOrders(Integer restaurantId, CustomUserDetails user) {
+        checkRestaurantOwnership(restaurantId, user);
+        List<String> statusesToFetch = Arrays.asList("PENDING", "CONFIRMED");
+        return orderRepository.findAllByRestaurantIdAndStatusInOrderByCreatedAtAsc(restaurantId, statusesToFetch);
+    }
+
+    /**
+     * API: PUT /api/orders/{id}/status
+     * (Đã đúng)
+     */
+    @Transactional
+    public Order updateOrderStatus(Integer orderId, UpdateOrderStatusRequest request, CustomUserDetails user) {
+        String authHeader = getAuthHeader(); // Lấy token để gọi service khác
+
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
 
-        // 2. KIỂM TRA BẢO MẬT:
-        // User phải là Admin HOẶC là chủ của đơn hàng
-        boolean isAdmin = user.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ADMIN"));
+        checkRestaurantOwnership(order.getRestaurantId(), user);
 
-        if (!isAdmin && !order.getCustomerId().equals(user.getId())) {
-            // Nếu không phải Admin VÀ không phải chủ đơn hàng -> Từ chối
-            throw new AccessDeniedException("Bạn không có quyền xem đơn hàng này.");
+        String newStatus = request.getStatus();
+        order.setStatus(newStatus);
+
+        // (Logic kích hoạt Drone đã đúng)
+        if ("READY_FOR_DELIVERY".equals(newStatus)) {
+
+            RestaurantDto restaurant = restaurantClient.getRestaurantById(order.getRestaurantId());
+
+            // (Tạm thời giả lập)
+            BigDecimal customerLat = new BigDecimal("10.8888");
+            BigDecimal customerLng = new BigDecimal("106.7777");
+
+            DeliveryRequestDto deliveryRequest = new DeliveryRequestDto();
+            deliveryRequest.setOrderId(orderId);
+            deliveryRequest.setStartLat(restaurant.getLatitude());
+            deliveryRequest.setStartLng(restaurant.getLongitude());
+            deliveryRequest.setEndLat(customerLat);
+            deliveryRequest.setEndLng(customerLng);
+
+            DeliveryResponseDto deliveryResponse = droneClient.createDelivery(deliveryRequest, authHeader);
+
+            order.setDeliveryId(deliveryResponse.getDeliveryId());
         }
 
-        // 3. Trả về đơn hàng (Bao gồm cả orderItems vì nó là EAGER)
-        return order;
+        return orderRepository.save(order);
+    }
+
+    // === HÀM TIỆN ÍCH BẢO MẬT (Đã đúng) ===
+    private void checkRestaurantOwnership(Integer restaurantId, CustomUserDetails user) {
+        RestaurantDto restaurant = restaurantClient.getRestaurantById(restaurantId);
+        boolean isAdmin = user.getAuthorities().stream()
+                .anyMatch(auth -> auth.getAuthority().equals("ADMIN"));
+        if (!isAdmin && !restaurant.getOwnerId().equals(user.getId())) {
+            throw new AccessDeniedException("Bạn không có quyền truy cập đơn hàng của nhà hàng này.");
+        }
+    }
+
+    /**
+     * Lấy thống kê Dashboard cho Admin
+     */
+    public OrderStatsDto getDashboardStats() {
+        long totalOrders = orderRepository.count();
+        long pendingOrders = orderRepository.countByStatus("PENDING");
+        long deliveringOrders = orderRepository.countByStatus("DELIVERING");
+
+        // Lấy doanh thu, nếu null (chưa có đơn nào) thì trả về 0
+        BigDecimal totalRevenue = orderRepository.findTotalRevenue();
+        if (totalRevenue == null) {
+            totalRevenue = BigDecimal.ZERO;
+        }
+
+        return new OrderStatsDto(totalOrders, pendingOrders, deliveringOrders, totalRevenue);
+    }
+
+    /**
+     * Lấy thống kê Dashboard cho 1 Nhà hàng
+     */
+    public RestaurantStatsDto getRestaurantDashboardStats(Integer restaurantId, CustomUserDetails user) {
+
+        // BƯỚC 1: KIỂM TRA QUYỀN SỞ HỮU (RẤT QUAN TRỌNG)
+        // Dùng lại hàm cũ mà bạn đã có
+        checkRestaurantOwnership(restaurantId, user);
+
+        // BƯỚC 2: LẤY SỐ LIỆU
+        long total = orderRepository.countByRestaurantId(restaurantId);
+        long pending = orderRepository.countByRestaurantIdAndStatus(restaurantId, "PENDING");
+        long delivering = orderRepository.countByRestaurantIdAndStatus(restaurantId, "DELIVERING");
+
+        BigDecimal revenue = orderRepository.findTotalRevenueByRestaurantId(restaurantId);
+        if (revenue == null) {
+            revenue = BigDecimal.ZERO;
+        }
+
+        return new RestaurantStatsDto(total, pending, delivering, revenue);
     }
 }

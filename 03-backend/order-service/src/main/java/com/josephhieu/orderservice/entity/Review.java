@@ -1,5 +1,6 @@
 package com.josephhieu.orderservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -20,6 +21,7 @@ public class Review {
 
     @OneToOne
     @JoinColumn(name = "order_id")
+    @JsonIgnore
     private Order order;
 
     @PrePersist

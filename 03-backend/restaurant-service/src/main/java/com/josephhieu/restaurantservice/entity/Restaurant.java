@@ -2,6 +2,8 @@ package com.josephhieu.restaurantservice.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,6 +22,12 @@ public class Restaurant {
     private String description;
     private String phone;
     private String address;
+
+    @Column(precision = 10, scale = 8) // Cho phép độ chính xác cao
+    private BigDecimal latitude;
+
+    @Column(precision = 11, scale = 8) // Longitude cần nhiều hơn 1 chữ số
+    private BigDecimal longitude;
     private Double rating;
     private String status;
     @Column(name = "cover_image_uri")

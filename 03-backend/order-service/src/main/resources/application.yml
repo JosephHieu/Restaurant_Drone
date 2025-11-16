@@ -1,5 +1,5 @@
 server:
-  port: 8083 # C?ng cho OrderService
+  port: 8083
 
 spring:
   application:
@@ -9,7 +9,7 @@ spring:
     banner-mode: off
 
   datasource:
-    url: jdbc:mysql://localhost:3308/order_service # <-- DATABASE M?I
+    url: jdbc:mysql://localhost:3308/order_service
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -22,7 +22,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
 
-# C?u hình Eureka Client
 eureka:
   instance:
     hostname: localhost
@@ -30,7 +29,6 @@ eureka:
     serviceUrl:
       defaultZone: http://localhost:8761/eureka/
 
-# C?u hình JWT (Ph?i kh?p v?i User Service)
 jwt:
-  secret: hsXSXV5UGLVBCqob4jHK6FzXCJ8OUtZNSBwdvYXv5I8XiR2Ef9 # <-- Khóa c?a b?n
+  secret: hsXSXV5UGLVBCqob4jHK6FzXCJ8OUtZNSBwdvYXv5I8XiR2Ef9
   expiration-ms: 86400000
