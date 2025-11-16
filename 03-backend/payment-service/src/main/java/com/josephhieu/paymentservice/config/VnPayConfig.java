@@ -4,13 +4,19 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
-import java.util.StringJoiner;
 
-// Lớp này chứa logic bảo mật Hashing của VNPay
+// Lớp này chứa logic Hashing và Tạo URL chuẩn của VNPAY
 public class VnPayConfig {
 
-    // Hàm băm (hash) HMAC-SHA512
+    /**
+     * Hàm băm (hash) HMAC-SHA512
+     * (Lấy từ Config.java của demo)
+     */
     public static String hmacSHA512(final String key, final String data) {
         try {
             if (key == null || data == null) {
@@ -32,23 +38,45 @@ public class VnPayConfig {
         }
     }
 
-    // Hàm tạo URL (đã bao gồm vnp_SecureHash)
-    public static String getPaymentUrl(Map<String, String> paramsMap, String secretKey, String vnpUrl) {
-        StringJoiner sj = new StringJoiner("&");
-        paramsMap.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .forEach(entry -> {
-                    try {
-                        sj.add(entry.getKey() + "=" + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8.toString()));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                });
+    /**
+     * Hàm tạo URL thanh toán (Bao gồm cả SecureHash)
+     * (Lấy logic từ ajaxServlet.java của demo)
+     */
+    public static String getPaymentUrl(Map<String, String> vnp_Params, String vnp_HashSecret, String vnp_PayUrl) {
 
-        String queryParams = sj.toString();
-        String hashData = queryParams;
-        String hmac = hmacSHA512(secretKey, hashData);
+        List<String> fieldNames = new ArrayList<>(vnp_Params.keySet());
+        Collections.sort(fieldNames);
 
-        return vnpUrl + "?" + queryParams + "&vnp_SecureHash=" + hmac;
+        StringBuilder hashData = new StringBuilder();
+        StringBuilder query = new StringBuilder();
+
+        Iterator<String> itr = fieldNames.iterator();
+        while (itr.hasNext()) {
+            String fieldName = itr.next();
+            String fieldValue = vnp_Params.get(fieldName);
+            if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                //Build hash data
+                hashData.append(fieldName);
+                hashData.append('=');
+                // Dùng US_ASCII (theo code demo)
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
+
+                //Build query
+                query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII));
+                query.append('=');
+                query.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
+
+                if (itr.hasNext()) {
+                    query.append('&');
+                    hashData.append('&');
+                }
+            }
+        }
+
+        String queryUrl = query.toString();
+        String vnp_SecureHash = hmacSHA512(vnp_HashSecret, hashData.toString());
+
+        queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
+        return vnp_PayUrl + "?" + queryUrl;
     }
 }

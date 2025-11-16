@@ -1,15 +1,15 @@
 server:
-  port: 8084
+  port: 8085
 
 spring:
   application:
-    name: PAYMENT-SERVICE
+    name: DRONE-SERVICE
 
   main:
     banner-mode: off
 
   datasource:
-    url: jdbc:mysql://localhost:3308/payment_service
+    url: jdbc:mysql://localhost:3308/drone_service
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -22,6 +22,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQL8Dialect
 
+
 eureka:
   instance:
     hostname: localhost
@@ -32,11 +33,3 @@ eureka:
 jwt:
   secret: hsXSXV5UGLVBCqob4jHK6FzXCJ8OUtZNSBwdvYXv5I8XiR2Ef9
   expiration-ms: 86400000
-
-
-vnpay:
-  tmnCode: "BUT55BVY"
-  hashSecret: "V0C722VD2KWCAIOWCC5EOI24150X9V0P"
-  url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-  returnUrl: "https://many-crabs-crash.loca.lt/payment-result"
-  ipnUrl: "https://rotten-shoes-burn.loca.lt/api/payments/vnpay-ipn"
