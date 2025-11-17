@@ -188,37 +188,37 @@ public class OrderService {
      */
     @Transactional
     public Order updateOrderStatus(Integer orderId, UpdateOrderStatusRequest request, CustomUserDetails user) {
-        String authHeader = getAuthHeader(); // Lấy token để gọi service khác
+        String authHeader = getAuthHeader(); // Lấy token (nếu cần)
 
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
 
+        // Kiểm tra quyền sở hữu (Giữ nguyên)
         checkRestaurantOwnership(order.getRestaurantId(), user);
 
-        String newStatus = request.getStatus();
-        order.setStatus(newStatus);
+        String newStatus = request.getStatus(); // Đây là "READY_FOR_DELIVERY"
 
-        // (Logic kích hoạt Drone đã đúng)
+        // === BẮT ĐẦU SỬA (LOGIC HARDCODE) ===
+
+        // Nếu chủ nhà hàng nhấn "Sẵn sàng Giao" (READY_FOR_DELIVERY)
         if ("READY_FOR_DELIVERY".equals(newStatus)) {
 
-            RestaurantDto restaurant = restaurantClient.getRestaurantById(order.getRestaurantId());
+            // Ngay lập tức chuyển nó thành "COMPLETED" (Hoàn thành)
+            order.setStatus("COMPLETED");
 
-            // (Tạm thời giả lập)
-            BigDecimal customerLat = new BigDecimal("10.8888");
-            BigDecimal customerLng = new BigDecimal("106.7777");
+            // Ghi log ra console để biết code đã chạy
+            System.out.println("LOGIC TEST: Đơn hàng #" + orderId + " đã được hardcode sang COMPLETED.");
 
-            DeliveryRequestDto deliveryRequest = new DeliveryRequestDto();
-            deliveryRequest.setOrderId(orderId);
-            deliveryRequest.setStartLat(restaurant.getLatitude());
-            deliveryRequest.setStartLng(restaurant.getLongitude());
-            deliveryRequest.setEndLat(customerLat);
-            deliveryRequest.setEndLng(customerLng);
+            // Chúng ta KHÔNG gọi droneClient.createDelivery(...) nữa.
 
-            DeliveryResponseDto deliveryResponse = droneClient.createDelivery(deliveryRequest, authHeader);
-
-            order.setDeliveryId(deliveryResponse.getDeliveryId());
+        } else {
+            // (Nếu trạng thái là "CONFIRMED", "CANCELLED", v.v. thì cập nhật bình thường)
+            order.setStatus(newStatus);
         }
 
+        // === KẾT THÚC SỬA ===
+
+        // Lưu trạng thái mới (COMPLETED) vào CSDL
         return orderRepository.save(order);
     }
 

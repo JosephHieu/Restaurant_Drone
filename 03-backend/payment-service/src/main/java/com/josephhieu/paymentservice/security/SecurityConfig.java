@@ -34,6 +34,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         // === 1. MỞ CÁC ĐƯỜNG DẪN CÔNG KHAI (PUBLIC) ===
+                        .requestMatchers("/api/momo/**").permitAll()
 
                         // QUAN TRỌNG: Mở API cho VNPay gọi (IPN)
                         .requestMatchers("/api/payments/vnpay-ipn").permitAll()
