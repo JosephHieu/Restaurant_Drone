@@ -38,9 +38,12 @@ jwt:
   secret: ${JWT_SECRET}
   expiration-ms: ${JWT_EXPIRE}
 
-storage:
-  upload-dir: D:/footfast-uploads
-
 logging:
   level:
     org.springframework.security: DEBUG
+
+# Mới thêm
+cloudinary:
+  cloud_name: dtux5p4sz
+  api_key: 598864493552961
+  api_secret: TJtqhhyevfvYdvAWUBuUZqHAOmg

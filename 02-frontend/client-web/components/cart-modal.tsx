@@ -11,7 +11,7 @@ import { AxiosError } from "axios";
 // Hàm tiện ích xây dựng URL ảnh
 const getImageUrl = (imageUri: string | undefined): string => {
   if (!imageUri) return "https://via.placeholder.com/80?text=No+Image";
-  return `http://localhost:8080/api/restaurants/images/${imageUri}`;
+  return imageUri;
 };
 
 // 1. Định nghĩa kiểu DTO trả về (khớp với OrderResponseDto)

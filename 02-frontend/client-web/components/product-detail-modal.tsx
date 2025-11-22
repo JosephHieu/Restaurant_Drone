@@ -1,21 +1,11 @@
 "use client";
 
-import { X, Star, ShoppingCart, Heart, Plus, Minus } from "lucide-react";
+import { X, Star, ShoppingCart, Heart } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCart } from "@/context/cart-context";
-import type { MenuItem } from "@/types"; // <-- 1. IMPORT INTERFACE THẬT
-import { Image } from "antd"; // <-- 2. DÙNG COMPONENT ẢNH TỐI ƯU
+import type { MenuItem } from "@/types";
+import { Image } from "antd";
 
-// 3. XÓA BỎ INTERFACE "Product" GIẢ LẬP
-
-// 4. TẠO HÀM TIỆN ÍCH XÂY DỰNG URL ẢNH
-const getImageUrl = (imageUri: string | undefined): string => {
-  if (!imageUri) return "https://via.placeholder.com/400?text=No+Image";
-  // URL này phải khớp với API Gateway
-  return `http://localhost:8080/api/restaurants/images/${imageUri}`;
-};
-
-// 5. SỬA LẠI PROPS: Đổi "Product" thành "MenuItem"
 interface ProductDetailModalProps {
   product: MenuItem | null;
   isOpen: boolean;
@@ -29,7 +19,7 @@ export default function ProductDetailModal({
 }: ProductDetailModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
-  const { addToCart } = useCart(); // (Giả sử useCart() đã được cập nhật)
+  const { addToCart } = useCart();
 
   useEffect(() => {
     if (isOpen) {
@@ -39,16 +29,7 @@ export default function ProductDetailModal({
 
   if (!isOpen || !product) return null;
 
-  // 6. SỬA LẠI LOGIC TÍNH TOÁN
   const totalPrice = product.price * quantity;
-
-  const handleAddToCart = () => {
-    // 7. SỬA LẠI DỮ LIỆU GỬI ĐI
-    // (Lưu ý: bạn sẽ cần cập nhật cart-context để chấp nhận MenuItem)
-    addToCart(product, quantity);
-    setQuantity(1);
-    onClose();
-  };
 
   return (
     <>
@@ -72,24 +53,29 @@ export default function ProductDetailModal({
 
           {/* Content */}
           <div className="p-6">
-            {/* 8. SỬA LẠI ẢNH */}
+            {/* Image */}
             <div className="relative mb-6 rounded-lg overflow-hidden bg-gray-100 h-80">
               <Image
-                src={getImageUrl(product.imageUri)}
-                alt={product.name}
-                className="w-full h-full rounded-l-lg" // <-- Bỏ 'object-cover'
-                style={{ objectFit: "cover" }} // <-- THÊM DÒNG NÀY
+                src={
+                  product.imageUri ||
+                  "https://via.placeholder.com/400?text=No+Image"
+                }
                 preview={false}
+                alt={product.name}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                }}
               />
-              {/* (Logic discount bị bỏ qua) */}
             </div>
 
-            {/* Restaurant Info (Cần gọi API để lấy tên thật) */}
+            {/* Restaurant */}
             <p className="text-sm text-gray-600 mb-4">
-              Từ: Nhà hàng (ID: {product.restaurantName})
+              Nhà hàng ID: {product.restaurantId}
             </p>
 
-            {/* (Rating - v0 dùng dữ liệu giả) */}
+            {/* Rating */}
             <div className="flex items-center gap-2 mb-4">
               <div className="flex items-center gap-1">
                 {[...Array(5)].map((_, i) => (
@@ -112,23 +98,20 @@ export default function ProductDetailModal({
               {product.description || "Món ăn ngon, hấp dẫn."}
             </p>
 
-            {/* Price Section */}
+            {/* Price */}
             <div className="bg-gray-50 p-4 rounded-lg mb-6">
-              <div className="flex items-baseline gap-3 mb-2">
-                <span className="text-3xl font-bold text-red-500">
-                  {product.price.toLocaleString("vi-VN")}₫
-                </span>
-                {/* (originalPrice bị bỏ qua) */}
+              <div className="text-3xl font-bold text-red-500">
+                {product.price.toLocaleString("vi-VN")}₫
               </div>
             </div>
 
-            {/* Quantity Selector (Đã đúng) */}
+            {/* Quantity */}
             <div className="flex items-center gap-4 mb-6">
               <span className="text-gray-700 font-semibold">Số lượng:</span>
               <div className="flex items-center border border-gray-300 rounded-lg">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 transition-colors"
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100"
                 >
                   −
                 </button>
@@ -137,14 +120,14 @@ export default function ProductDetailModal({
                 </span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 transition-colors"
+                  className="px-4 py-2 text-gray-600 hover:bg-gray-100"
                 >
                   +
                 </button>
               </div>
             </div>
 
-            {/* Total Price */}
+            {/* Total */}
             <div className="bg-blue-50 p-4 rounded-lg mb-6 flex items-center justify-between">
               <span className="text-gray-700 font-semibold">Tổng cộng:</span>
               <span className="text-2xl font-bold text-red-500">
@@ -152,7 +135,7 @@ export default function ProductDetailModal({
               </span>
             </div>
 
-            {/* Action Buttons */}
+            {/* Buttons */}
             <div className="flex gap-3">
               <button
                 onClick={() => setIsFavorite(!isFavorite)}
@@ -165,8 +148,12 @@ export default function ProductDetailModal({
                 <Heart size={20} fill={isFavorite ? "currentColor" : "none"} />
                 {isFavorite ? "Đã thích" : "Thích"}
               </button>
+
               <button
-                onClick={handleAddToCart}
+                onClick={() => {
+                  addToCart(product, quantity);
+                  onClose();
+                }}
                 className="flex-1 bg-red-500 text-white py-3 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-red-600 transition-colors"
               >
                 <ShoppingCart size={20} />

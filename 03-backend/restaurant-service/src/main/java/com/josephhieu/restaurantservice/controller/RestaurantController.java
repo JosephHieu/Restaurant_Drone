@@ -2,10 +2,9 @@ package com.josephhieu.restaurantservice.controller;
 
 import com.josephhieu.restaurantservice.dto.MenuItemPublicDto; // <-- Import DTO
 import com.josephhieu.restaurantservice.dto.request.*;
-import com.josephhieu.restaurantservice.entity.MenuItem;
 import com.josephhieu.restaurantservice.entity.Restaurant;
 import com.josephhieu.restaurantservice.security.CustomUserDetails;
-import com.josephhieu.restaurantservice.service.FileStorageService;
+import com.josephhieu.restaurantservice.service.CloudinaryService;
 import com.josephhieu.restaurantservice.service.RestaurantService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,8 +22,9 @@ public class RestaurantController {
 
     @Autowired
     private RestaurantService restaurantService;
+
     @Autowired
-    private FileStorageService fileStorageService;
+    private CloudinaryService cloudinaryService;
 
     // === API CỦA CHỦ NHÀ HÀNG (OWNER) ===
 
@@ -146,11 +146,7 @@ public class RestaurantController {
     @PostMapping("/upload-image")
     @PreAuthorize("hasAnyAuthority('ADMIN', 'RESTAURANT_OWNER')")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
-        try {
-            String fileName = fileStorageService.storeFile(file);
-            return ResponseEntity.ok(fileName);
-        } catch (RuntimeException ex) {
-            return ResponseEntity.status(500).body(ex.getMessage());
-        }
+        String url = cloudinaryService.uploadFile(file);
+        return ResponseEntity.ok(url);
     }
 }
