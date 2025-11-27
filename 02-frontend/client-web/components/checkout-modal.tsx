@@ -8,6 +8,14 @@ import api from "@/services/api";
 import { Alert, Button, message, Radio, Space, Spin } from "antd"; // Dùng AntD cho message và Spin
 import { AimOutlined } from "@ant-design/icons";
 import { AxiosError } from "axios";
+import dynamic from "next/dynamic";
+import { reverseGeocode } from "@/lib/geocode";
+
+// Dynamic import để tránh lỗi SSR với Leaflet
+const LocationPickerLeaflet = dynamic(
+  () => import("@/components/location-picker-leaflet"),
+  { ssr: false, loading: () => <div className="h-64 bg-gray-100 rounded-xl flex items-center justify-center">Đang tải bản đồ...</div> }
+);
 
 // Kiểu DTO trả về (khớp với OrderResponseDto của backend)
 interface OrderResponse {
@@ -41,6 +49,7 @@ export default function CheckoutModal({
   const [paymentMethod, setPaymentMethod] = useState("COD"); // Mặc định là COD
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isResolvingAddress, setIsResolvingAddress] = useState(false);
 
   const [customerCoordinates, setCustomerCoordinates] = useState<{
     lat: number;
@@ -51,9 +60,9 @@ export default function CheckoutModal({
   useEffect(() => {
     if (isOpen && user) {
       setFormData({
-        fullName: user.fullName,
-        phone: user.phone,
-        deliveryAddress: user.address,
+        fullName: user.fullName || "",
+        phone: user.phone || "",
+        deliveryAddress: user.address || "",
       });
       setCustomerCoordinates(null);
     }
@@ -68,6 +77,36 @@ export default function CheckoutModal({
     }, 0);
   }, [cart]);
 
+  const formatCoordinatesAsAddress = (lat: number, lng: number) =>
+    `Tọa độ: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+  const updateLocationFromCoordinates = async (coords: {
+    lat: number;
+    lng: number;
+  }) => {
+    setCustomerCoordinates(coords);
+    setError("");
+
+    // Sử dụng OpenStreetMap Nominatim để lấy địa chỉ (miễn phí)
+    setIsResolvingAddress(true);
+    const { formattedAddress } = await reverseGeocode(
+      coords.lat,
+      coords.lng
+    ).finally(() => setIsResolvingAddress(false));
+
+    // Chỉ cập nhật địa chỉ nếu ô địa chỉ đang trống hoặc là tọa độ cũ
+    setFormData((prev) => {
+      const isEmptyOrCoordinates = !prev.deliveryAddress || prev.deliveryAddress.startsWith("Tọa độ:");
+      if (isEmptyOrCoordinates || !prev.deliveryAddress.trim()) {
+        return {
+          ...prev,
+          deliveryAddress: formattedAddress ?? formatCoordinatesAsAddress(coords.lat, coords.lng),
+        };
+      }
+      return prev; // Giữ nguyên địa chỉ nếu người dùng đã nhập
+    });
+  };
+
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
       message.error("Trình duyệt không hỗ trợ Geolocation");
@@ -79,12 +118,11 @@ export default function CheckoutModal({
     setError(""); // Xóa lỗi cũ
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
-        // Cập nhật state tọa độ
-        setCustomerCoordinates({ lat, lng });
+        await updateLocationFromCoordinates({ lat, lng });
 
         message.success({
           content: "Đã lấy vị trí thành công!",
@@ -241,6 +279,9 @@ export default function CheckoutModal({
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Địa chỉ giao hàng
+                          <span className="text-xs text-gray-400 ml-2">
+                            (Tự động điền khi chọn bản đồ, hoặc nhập thủ công)
+                          </span>
                         </label>
                         <div className="relative">
                           <MapPin
@@ -248,15 +289,16 @@ export default function CheckoutModal({
                             size={18}
                           />
                           <textarea
-                            value={formData.deliveryAddress}
+                            value={formData.deliveryAddress || ""}
                             onChange={(e) => {
                               setFormData({
                                 ...formData,
                                 deliveryAddress: e.target.value,
                               });
-                              setCustomerCoordinates(null); // Reset tọa độ
+                              // Không reset tọa độ khi người dùng chỉnh sửa địa chỉ
                               setError(""); // Xóa lỗi
                             }}
+                            placeholder="Nhập địa chỉ hoặc chọn vị trí trên bản đồ bên dưới..."
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"
                             rows={3}
                             required
@@ -264,30 +306,41 @@ export default function CheckoutModal({
                         </div>
                       </div>
 
-                      {/* Nút lấy tọa độ */}
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Tọa độ GPS (Bắt buộc)
-                        </label>
-
-                        <Button
-                          type="dashed"
-                          icon={<AimOutlined />}
-                          onClick={getCurrentLocation}
-                        >
-                          Lấy vị trí của tôi
-                        </Button>
-
-                        {customerCoordinates && (
-                          <Alert
-                            message={`Đã lấy tọa độ: ${customerCoordinates.lat.toFixed(
-                              4
-                            )}, ${customerCoordinates.lng.toFixed(4)}`}
-                            type="success"
-                            showIcon
-                            style={{ marginTop: 8 }}
-                          />
-                        )}
+                      {/* Bản đồ chọn vị trí */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-medium text-gray-700">
+                            📍 Chọn vị trí giao hàng trên bản đồ
+                          </label>
+                          {isResolvingAddress && (
+                            <span className="text-xs text-orange-500 animate-pulse">
+                              ⏳ Đang xác định địa chỉ...
+                            </span>
+                          )}
+                        </div>
+                        <LocationPickerLeaflet
+                          selectedLocation={customerCoordinates}
+                          onLocationChange={updateLocationFromCoordinates}
+                          isResolvingAddress={isResolvingAddress}
+                        />
+                        <div className="flex items-center gap-4">
+                          <Button
+                            type="dashed"
+                            icon={<AimOutlined />}
+                            onClick={getCurrentLocation}
+                            size="small"
+                          >
+                            📍 Lấy vị trí hiện tại
+                          </Button>
+                          {customerCoordinates && (
+                            <span className="text-xs text-green-600">
+                              ✅ Đã chọn: {customerCoordinates.lat.toFixed(4)}, {customerCoordinates.lng.toFixed(4)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          💡 Nhấn vào bản đồ để chọn vị trí → Địa chỉ sẽ tự động điền vào ô trên
+                        </p>
                       </div>
                     </div>
                   </div>

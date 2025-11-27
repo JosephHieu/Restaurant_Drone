@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/context/auth-context";
 import api from "@/services/api";
 import {
@@ -15,13 +15,22 @@ import {
   Row,
   Col,
   Button,
+  message,
+  notification,
 } from "antd"; // <-- Dùng AntD
 import type { TableProps } from "antd";
 import { X } from "lucide-react"; // Icon của v0
+import dynamic from "next/dynamic";
 
 // BỔ SUNG: Import thư viện WebSocket
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+
+// Dynamic import DroneTrackingMap để tránh lỗi SSR
+const DroneTrackingMap = dynamic(
+  () => import("@/components/drone-tracking-map"),
+  { ssr: false, loading: () => <div className="h-72 bg-gray-100 rounded-xl flex items-center justify-center">🗺️ Đang tải bản đồ...</div> }
+);
 
 const { Title, Text } = Typography;
 
@@ -42,6 +51,17 @@ interface Order {
   deliveryAddress: string;
   paymentMethod: string;
   orderItems: OrderItem[]; // <-- Phải có trường này
+  // Thêm tọa độ giao hàng
+  deliveryLat?: number;
+  deliveryLng?: number;
+}
+
+// Interface cho Restaurant (để lấy tọa độ)
+interface Restaurant {
+  restaurantId: number;
+  name: string;
+  latitude: number;
+  longitude: number;
 }
 
 // Cột cho bảng (bên trong chi tiết)
@@ -96,8 +116,13 @@ export default function OrderDetailModal({
   orderId,
 }: OrderDetailModalProps) {
   const [order, setOrder] = useState<Order | null>(null);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // State cho drone tracking giả lập
+  const [droneArrived, setDroneArrived] = useState(false); // Drone đã đến nơi
+  const [confirmingDelivery, setConfirmingDelivery] = useState(false); // Đang xác nhận
 
   // BỔ SUNG: State và Ref cho WebSocket
   const [dronePosition, setDronePosition] = useState<{
@@ -107,28 +132,73 @@ export default function OrderDetailModal({
   const [wsStatus, setWsStatus] = useState("Ngắt kết nối");
   const stompClientRef = useRef<Client | null>(null);
 
-  // 2. TẢI DỮ LIỆU CHI TIẾT KHI MODAL MỞ
+  // Ref để track status hiện tại (tránh closure stale)
+  const orderStatusRef = useRef<string | null>(null);
+  const droneArrivedRef = useRef(false);
+  
+  // Sync refs với state
+  useEffect(() => {
+    orderStatusRef.current = order?.status || null;
+  }, [order?.status]);
+  
+  useEffect(() => {
+    droneArrivedRef.current = droneArrived;
+  }, [droneArrived]);
+
+  // 2. TẢI DỮ LIỆU CHI TIẾT KHI MODAL MỞ + Auto polling
   useEffect(() => {
     // Chỉ chạy khi modal mở và có orderId
     if (isOpen && orderId) {
-      const fetchOrderDetails = async () => {
-        setLoading(true);
-        setError("");
-        setDronePosition(null); // Reset vị trí drone
-        setWsStatus("Ngắt kết nối"); // Reset trạng thái WS
+      const fetchOrderDetails = async (isInitial = false) => {
+        if (isInitial) {
+          setLoading(true);
+          setError("");
+          setDronePosition(null); // Reset vị trí drone
+          setWsStatus("Ngắt kết nối"); // Reset trạng thái WS
+          setDroneArrived(false); // Reset drone arrived
+          setConfirmingDelivery(false);
+          setRestaurant(null);
+        }
         try {
           // Gọi API GET /api/orders/{id} (Backend đã tạo)
           const response = await api.get<Order>(`/api/orders/${orderId}`);
           setOrder(response.data);
+          
+          // Lấy thông tin nhà hàng để có tọa độ
+          if (isInitial || !restaurant) {
+            try {
+              const restaurantRes = await api.get<Restaurant>(`/api/restaurants/${response.data.restaurantId}`);
+              setRestaurant(restaurantRes.data);
+            } catch (err) {
+              console.log("Không thể lấy thông tin nhà hàng");
+            }
+          }
         } catch (err) {
-          setError("Không thể tải chi tiết đơn hàng.");
+          if (isInitial) {
+            setError("Không thể tải chi tiết đơn hàng.");
+          }
         } finally {
-          setLoading(false);
+          if (isInitial) {
+            setLoading(false);
+          }
         }
       };
-      fetchOrderDetails();
+      
+      // Lần đầu load
+      fetchOrderDetails(true);
+      
+      // Polling mỗi 5 giây - NHƯNG không poll khi đang DELIVERING và drone chưa đến
+      const interval = setInterval(() => {
+        // Dùng ref để check, tránh stale closure
+        if (orderStatusRef.current === "DELIVERING" && !droneArrivedRef.current) {
+          console.log("⏸️ Tạm dừng polling - đang animation drone");
+          return;
+        }
+        fetchOrderDetails(false);
+      }, 5000);
+      return () => clearInterval(interval);
     }
-  }, [isOpen, orderId]); // Chạy lại khi orderId thay đổi
+  }, [isOpen, orderId]); // Chỉ phụ thuộc vào isOpen và orderId
 
   useEffect(() => {
     // Chỉ kết nối nếu:
@@ -176,6 +246,42 @@ export default function OrderDetailModal({
     }
   }, [isOpen, order]); // Chạy lại khi 'order' được tải (hoặc modal mở/đóng)
 
+  // Xử lý khi drone đến nơi (sau 5 giây simulation) - dùng useCallback để stable reference
+  const handleDroneArrived = useCallback(() => {
+    console.log("🚁 Drone đã đến nơi - hiển thị nút xác nhận");
+    setDroneArrived(true);
+    // Hiển thị thông báo
+    notification.success({
+      message: "🚁 Drone đã đến nơi!",
+      description: "Vui lòng nhận hàng và xác nhận để hoàn thành đơn hàng.",
+      duration: 0, // Không tự đóng
+      placement: "topRight",
+    });
+  }, []);
+
+  // Xử lý xác nhận nhận hàng - dùng useCallback để stable reference
+  const handleConfirmDelivery = useCallback(async () => {
+    if (!orderId) return;
+    
+    setConfirmingDelivery(true);
+    try {
+      // Gọi API xác nhận đã nhận hàng (DELIVERING -> COMPLETED)
+      await api.put(`/api/orders/${orderId}/confirm-delivery`);
+      
+      message.success("✅ Đã xác nhận nhận hàng thành công!");
+      
+      // Cập nhật state local
+      setOrder(prev => prev ? { ...prev, status: "COMPLETED" } : null);
+      setDroneArrived(false);
+      
+      notification.destroy(); // Đóng thông báo
+    } catch (err) {
+      message.error("Không thể xác nhận nhận hàng. Vui lòng thử lại!");
+    } finally {
+      setConfirmingDelivery(false);
+    }
+  }, [orderId]);
+
   if (!isOpen) return null;
 
   return (
@@ -201,55 +307,147 @@ export default function OrderDetailModal({
           {/* Content */}
           <div className="p-6 overflow-y-auto">
             {loading ? (
-              <Spin tip="Đang tải chi tiết..." />
+              <div className="flex justify-center items-center py-8">
+                <Spin size="large" />
+                <span className="ml-3 text-gray-500">Đang tải chi tiết...</span>
+              </div>
             ) : error ? (
               <Alert message="Lỗi" description={error} type="error" showIcon />
             ) : (
               order && (
                 <>
-                  {/* BỔ SUNG: Card hiển thị Trạng thái Drone */}
-                  {(order.status === "DELIVERING" ||
-                    order.status === "COMPLETED") && (
+                  {/* BỔ SUNG: Card theo dõi Drone - CHỈ hiện khi DELIVERING hoặc COMPLETED */}
+                  {(order.status === "DELIVERING" || order.status === "COMPLETED") && (
                     <Card
-                      title="🛰️ Theo dõi Drone (Thời gian thực)"
+                      title="🚁 Theo dõi Drone giao hàng"
                       className="mb-4"
+                      extra={
+                        order.status === "COMPLETED" ? (
+                          <Tag color="success">✅ Đã giao xong</Tag>
+                        ) : droneArrived ? (
+                          <Tag color="green">📍 Drone đã đến nơi</Tag>
+                        ) : (
+                          <Tag color="blue">🚁 Đang giao hàng</Tag>
+                        )
+                      }
                     >
-                      <Descriptions column={1}>
-                        <Descriptions.Item label="Trạng thái WebSocket">
-                          <Tag
-                            color={
-                              wsStatus === "Đã kết nối" ? "success" : "default"
-                            }
-                          >
-                            {wsStatus}
-                          </Tag>
-                        </Descriptions.Item>
-                      </Descriptions>
-                      {/* Đây là nơi bạn sẽ đặt component bản đồ */}
-                      {dronePosition ? (
-                        <Alert
-                          message="Đã nhận được vị trí drone:"
-                          description={`Vĩ độ (Lat): ${dronePosition.lat.toFixed(
-                            6
-                          )}, Kinh độ (Lng): ${dronePosition.lng.toFixed(6)}`}
-                          type="success"
-                          showIcon
-                          className="mt-2"
-                        />
+                      {/* Kiểm tra có đủ tọa độ không */}
+                      {restaurant && order.deliveryLat && order.deliveryLng ? (
+                        <>
+                          {/* Nếu đang DELIVERING thì hiện map với animation */}
+                          {order.status === "DELIVERING" && (
+                            <>
+                              <DroneTrackingMap
+                                key={`drone-${order.orderId}`}
+                                restaurantLocation={{
+                                  lat: restaurant.latitude,
+                                  lng: restaurant.longitude,
+                                }}
+                                customerLocation={{
+                                  lat: order.deliveryLat,
+                                  lng: order.deliveryLng,
+                                }}
+                                isDelivering={true}
+                                onDeliveryComplete={handleDroneArrived}
+                                animationDuration={5000} // 5 giây
+                                orderId={order.orderId}
+                              />
+                              
+                              {/* Hiển thị thông báo và nút xác nhận khi drone đến */}
+                              {droneArrived && (
+                                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl text-center">
+                                  <div className="text-4xl mb-2">🎉</div>
+                                  <h3 className="text-lg font-bold text-green-700 mb-2">
+                                    Drone đã đến nơi giao hàng!
+                                  </h3>
+                                  <p className="text-gray-600 mb-4">
+                                    Vui lòng nhận hàng từ drone và nhấn xác nhận bên dưới
+                                  </p>
+                                  <Button
+                                    type="primary"
+                                    size="large"
+                                    loading={confirmingDelivery}
+                                    onClick={handleConfirmDelivery}
+                                    className="bg-green-600 hover:bg-green-700"
+                                    style={{ backgroundColor: "#16a34a", borderColor: "#16a34a" }}
+                                  >
+                                    ✅ Xác nhận đã nhận hàng
+                                  </Button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                          
+                          {/* Hiển thị khi đã hoàn thành */}
+                          {order.status === "COMPLETED" && (
+                            <>
+                              <DroneTrackingMap
+                                key={`drone-completed-${order.orderId}`}
+                                restaurantLocation={{
+                                  lat: restaurant.latitude,
+                                  lng: restaurant.longitude,
+                                }}
+                                customerLocation={{
+                                  lat: order.deliveryLat,
+                                  lng: order.deliveryLng,
+                                }}
+                                isDelivering={false}
+                                animationDuration={5000}
+                                orderId={order.orderId}
+                              />
+                              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-center">
+                                <div className="text-4xl mb-2">✅</div>
+                                <h3 className="text-lg font-bold text-blue-700">
+                                  Đơn hàng đã hoàn thành!
+                                </h3>
+                                <p className="text-gray-600">
+                                  Cảm ơn bạn đã sử dụng dịch vụ giao hàng bằng Drone 🚁
+                                </p>
+                              </div>
+                            </>
+                          )}
+                        </>
                       ) : (
                         <Alert
-                          message={
-                            order.status === "COMPLETED"
-                              ? "Chuyến giao đã hoàn thành."
-                              : "Đang chờ tín hiệu drone..."
-                          }
-                          type={
-                            order.status === "COMPLETED" ? "success" : "info"
-                          }
+                          message="Không có thông tin tọa độ"
+                          description={`Đơn hàng này chưa có đầy đủ thông tin tọa độ để hiển thị bản đồ. (Restaurant: ${restaurant ? 'OK' : 'NULL'}, Lat: ${order.deliveryLat}, Lng: ${order.deliveryLng})`}
+                          type="warning"
                           showIcon
-                          className="mt-2"
                         />
-                      )}{" "}
+                      )}
+                    </Card>
+                  )}
+
+                  {/* Thông báo trạng thái cho các đơn chưa giao */}
+                  {order.status !== "DELIVERING" && order.status !== "COMPLETED" && order.status !== "CANCELLED" && (
+                    <Card className="mb-4">
+                      <div className="text-center py-4">
+                        <div className="text-4xl mb-3">
+                          {order.status === "PENDING" && "⏳"}
+                          {order.status === "CONFIRMED" && "✅"}
+                          {order.status === "READY_FOR_DELIVERY" && "📦"}
+                        </div>
+                        <p className="text-gray-600 text-lg">
+                          {order.status === "PENDING" && "Đơn hàng đang chờ nhà hàng xác nhận..."}
+                          {order.status === "CONFIRMED" && "Nhà hàng đã xác nhận, đang chuẩn bị món..."}
+                          {order.status === "READY_FOR_DELIVERY" && "Đơn hàng đã sẵn sàng, đang chờ drone đến lấy..."}
+                        </p>
+                        <p className="text-sm text-gray-400 mt-2">
+                          🚁 Bản đồ theo dõi drone sẽ hiện khi nhà hàng bắt đầu giao hàng
+                        </p>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Thông báo cho đơn hàng đã hủy */}
+                  {order.status === "CANCELLED" && (
+                    <Card className="mb-4">
+                      <div className="text-center py-4">
+                        <div className="text-4xl mb-3">❌</div>
+                        <p className="text-red-500 text-lg font-semibold">
+                          Đơn hàng đã bị hủy
+                        </p>
+                      </div>
                     </Card>
                   )}
                   {/* Code Row/Col hiển thị thông tin cũ (Giữ nguyên) */}

@@ -127,7 +127,10 @@ export default function MyOrdersModal({
           {/* Content */}
           <div className="p-6 overflow-y-auto">
             {loading ? (
-              <Spin tip="Đang tải lịch sử..." />
+              <div className="flex justify-center items-center py-8">
+                <Spin size="large" />
+                <span className="ml-3 text-gray-500">Đang tải lịch sử...</span>
+              </div>
             ) : error ? (
               <Alert message="Lỗi" description={error} type="error" showIcon />
             ) : (

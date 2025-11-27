@@ -22,6 +22,10 @@ public class Order {
     private String status;
     private String paymentMethod;
     private Integer deliveryId; // ID của chuyến giao (từ DroneService)
+    
+    // Tọa độ giao hàng
+    private BigDecimal deliveryLat;
+    private BigDecimal deliveryLng;
 
     @Column(updatable = false)
     private LocalDateTime createdAt;

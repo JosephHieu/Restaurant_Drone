@@ -13,11 +13,14 @@ import {
   Empty,
   Divider,
   List,
+  Tag,
 } from "antd";
 import {
   CheckOutlined,
   ClockCircleOutlined,
-  ArrowRightOutlined,
+  RocketOutlined,
+  CarOutlined,
+  CheckCircleOutlined,
 } from "@ant-design/icons";
 import api from "../services/api";
 import type { Restaurant } from "../types";
@@ -67,29 +70,31 @@ const OrderManagementPage: React.FC = () => {
     fetchOwnedRestaurants();
   }, []); // Chạy 1 lần
 
-  // 2. Tải danh sách Đơn hàng (mỗi khi đổi nhà hàng)
+  // 2. Tải danh sách Đơn hàng (mỗi khi đổi nhà hàng) + Auto refresh
   useEffect(() => {
     if (!selectedRestaurantId) return;
 
     const fetchOrders = async () => {
-      setLoading(true);
-      setError(null);
       try {
         const response = await api.get<Order[]>(
           `/api/orders/restaurant/${selectedRestaurantId}`
         );
         setOrders(response.data);
       } catch (err) {
-        setError("Không thể tải danh sách đơn hàng.");
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
+    
     fetchOrders();
-  }, [selectedRestaurantId]); // Chạy lại khi ID đổi
+    
+    // Auto refresh mỗi 5 giây để cập nhật khi khách xác nhận
+    const interval = setInterval(fetchOrders, 5000);
+    return () => clearInterval(interval);
+  }, [selectedRestaurantId]);
 
-  // 3. Hàm cập nhật trạng thái (Logic giữ nguyên)
+  // 3. Hàm cập nhật trạng thái
   const handleUpdateStatus = async (orderId: number, newStatus: string) => {
     try {
       const response = await api.put<Order>(`/api/orders/${orderId}/status`, {
@@ -121,6 +126,16 @@ const OrderManagementPage: React.FC = () => {
     [orders]
   );
 
+  const deliveringOrders = useMemo(
+    () => orders.filter((o) => o.status === "DELIVERING"),
+    [orders]
+  );
+
+  const completedOrders = useMemo(
+    () => orders.filter((o) => o.status === "COMPLETED").slice(0, 5), // Chỉ hiện 5 đơn gần nhất
+    [orders]
+  );
+
   if (loading && restaurants.length === 0) {
     return <Spin tip="Đang tải dữ liệu..." fullscreen />;
   }
@@ -133,7 +148,7 @@ const OrderManagementPage: React.FC = () => {
     <div style={{ padding: 24 }}>
       <Title level={2}>Quản lý Đơn hàng</Title>
 
-      {/* 5. Bộ chọn nhà hàng (Giữ nguyên) */}
+      {/* 5. Bộ chọn nhà hàng */}
       <Space style={{ marginBottom: 24 }}>
         <Title level={5} style={{ margin: 0 }}>
           Quán đang chọn:
@@ -153,40 +168,40 @@ const OrderManagementPage: React.FC = () => {
         </Select>
       </Space>
 
-      {/* 6. Giao diện Kanban Board */}
+      {/* 6. Giao diện Kanban Board - 4 cột */}
       <Spin spinning={loading}>
         <Row gutter={16}>
           {/* CỘT 1: CHỜ XÁC NHẬN (PENDING) */}
-          <Col xs={24} md={12}>
+          <Col xs={24} md={6}>
             <Card
               title={
                 <Space>
-                  <ClockCircleOutlined /> Chờ xác nhận ({pendingOrders.length})
+                  <ClockCircleOutlined style={{ color: "#faad14" }} /> Chờ xác nhận ({pendingOrders.length})
                 </Space>
               }
-              style={{ backgroundColor: "#fafafa", minHeight: "60vh" }}
+              style={{ backgroundColor: "#fffbe6", minHeight: "60vh" }}
+              size="small"
             >
               {pendingOrders.length === 0 && (
                 <Empty description="Không có đơn hàng mới" />
               )}
               <Space direction="vertical" style={{ width: "100%" }}>
                 {pendingOrders.map((order) => (
-                  <Card key={order.orderId} hoverable>
-                    <Title level={5}>Đơn hàng #{order.orderId}</Title>
-                    {/* (Chi tiết món ăn) */}
+                  <Card key={order.orderId} size="small" hoverable>
+                    <Title level={5}>Đơn #{order.orderId}</Title>
                     <List
                       dataSource={order.orderItems}
+                      size="small"
                       renderItem={(item: OrderItem) => (
-                        <List.Item style={{ padding: "5px 0" }}>
+                        <List.Item style={{ padding: "2px 0" }}>
                           <Text>
                             <strong>{item.quantity}x</strong> {item.name}
                           </Text>
                         </List.Item>
                       )}
                     />
-                    <Divider style={{ margin: "12px 0" }} />
-                    <p>
-                      Tổng tiền:{" "}
+                    <Divider style={{ margin: "8px 0" }} />
+                    <p style={{ margin: "4px 0" }}>
                       <Text strong type="danger">
                         {order.totalPrice.toLocaleString("vi-VN")} đ
                       </Text>
@@ -194,9 +209,8 @@ const OrderManagementPage: React.FC = () => {
                     <Button
                       type="primary"
                       icon={<CheckOutlined />}
-                      onClick={() =>
-                        handleUpdateStatus(order.orderId, "CONFIRMED")
-                      }
+                      onClick={() => handleUpdateStatus(order.orderId, "CONFIRMED")}
+                      block
                     >
                       Xác nhận
                     </Button>
@@ -207,40 +221,36 @@ const OrderManagementPage: React.FC = () => {
           </Col>
 
           {/* CỘT 2: ĐANG CHUẨN BỊ (CONFIRMED) */}
-          <Col xs={24} md={12}>
+          <Col xs={24} md={6}>
             <Card
               title={
                 <Space>
-                  <CheckOutlined /> Đang chuẩn bị ({confirmedOrders.length})
+                  <CheckOutlined style={{ color: "#1890ff" }} /> Đang chuẩn bị ({confirmedOrders.length})
                 </Space>
               }
-              style={{ backgroundColor: "#fafafa", minHeight: "60vh" }}
+              style={{ backgroundColor: "#e6f7ff", minHeight: "60vh" }}
+              size="small"
             >
               {confirmedOrders.length === 0 && (
-                <Empty description="Không có đơn hàng nào" />
+                <Empty description="Không có đơn" />
               )}
-
               <Space direction="vertical" style={{ width: "100%" }}>
                 {confirmedOrders.map((order) => (
-                  <Card key={order.orderId} hoverable>
-                    <Title level={5}>Đơn hàng #{order.orderId}</Title>
-
-                    {/* === SỬA LỖI Ở ĐÂY: THÊM CHI TIẾT MÓN ĂN === */}
+                  <Card key={order.orderId} size="small" hoverable>
+                    <Title level={5}>Đơn #{order.orderId}</Title>
                     <List
                       dataSource={order.orderItems}
+                      size="small"
                       renderItem={(item: OrderItem) => (
-                        <List.Item style={{ padding: "5px 0" }}>
+                        <List.Item style={{ padding: "2px 0" }}>
                           <Text>
                             <strong>{item.quantity}x</strong> {item.name}
                           </Text>
                         </List.Item>
                       )}
                     />
-                    <Divider style={{ margin: "12px 0" }} />
-                    {/* ======================================== */}
-
-                    <p>
-                      Tổng tiền:{" "}
+                    <Divider style={{ margin: "8px 0" }} />
+                    <p style={{ margin: "4px 0" }}>
                       <Text strong type="danger">
                         {order.totalPrice.toLocaleString("vi-VN")} đ
                       </Text>
@@ -248,13 +258,96 @@ const OrderManagementPage: React.FC = () => {
                     <Button
                       type="primary"
                       style={{ backgroundColor: "#52c41a" }}
-                      icon={<ArrowRightOutlined />}
-                      onClick={() =>
-                        handleUpdateStatus(order.orderId, "READY_FOR_DELIVERY")
-                      }
+                      icon={<RocketOutlined />}
+                      onClick={() => handleUpdateStatus(order.orderId, "DELIVERING")}
+                      block
                     >
-                      Sẵn sàng Giao
+                      🚁 Giao hàng
                     </Button>
+                  </Card>
+                ))}
+              </Space>
+            </Card>
+          </Col>
+
+          {/* CỘT 3: ĐANG GIAO (DELIVERING) - Chờ khách xác nhận */}
+          <Col xs={24} md={6}>
+            <Card
+              title={
+                <Space>
+                  <CarOutlined style={{ color: "#722ed1" }} /> Đang giao ({deliveringOrders.length})
+                </Space>
+              }
+              style={{ backgroundColor: "#f9f0ff", minHeight: "60vh" }}
+              size="small"
+            >
+              {deliveringOrders.length === 0 && (
+                <Empty description="Không có đơn đang giao" />
+              )}
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {deliveringOrders.map((order) => (
+                  <Card key={order.orderId} size="small" hoverable>
+                    <Title level={5}>Đơn #{order.orderId}</Title>
+                    <Tag color="purple" style={{ marginBottom: 8 }}>🚁 Drone đang giao</Tag>
+                    <List
+                      dataSource={order.orderItems}
+                      size="small"
+                      renderItem={(item: OrderItem) => (
+                        <List.Item style={{ padding: "2px 0" }}>
+                          <Text>
+                            <strong>{item.quantity}x</strong> {item.name}
+                          </Text>
+                        </List.Item>
+                      )}
+                    />
+                    <Divider style={{ margin: "8px 0" }} />
+                    <p style={{ margin: "4px 0", fontSize: "12px" }}>
+                      📍 {order.deliveryAddress}
+                    </p>
+                    <p style={{ margin: "4px 0" }}>
+                      <Text strong type="danger">
+                        {order.totalPrice.toLocaleString("vi-VN")} đ
+                      </Text>
+                    </p>
+                    <Alert
+                      message="Chờ khách xác nhận nhận hàng"
+                      type="info"
+                      showIcon
+                      style={{ fontSize: "11px" }}
+                    />
+                  </Card>
+                ))}
+              </Space>
+            </Card>
+          </Col>
+
+          {/* CỘT 4: HOÀN THÀNH (COMPLETED) */}
+          <Col xs={24} md={6}>
+            <Card
+              title={
+                <Space>
+                  <CheckCircleOutlined style={{ color: "#52c41a" }} /> Hoàn thành ({completedOrders.length})
+                </Space>
+              }
+              style={{ backgroundColor: "#f6ffed", minHeight: "60vh" }}
+              size="small"
+            >
+              {completedOrders.length === 0 && (
+                <Empty description="Chưa có đơn hoàn thành" />
+              )}
+              <Space direction="vertical" style={{ width: "100%" }}>
+                {completedOrders.map((order) => (
+                  <Card key={order.orderId} size="small">
+                    <Title level={5}>Đơn #{order.orderId}</Title>
+                    <Tag color="success">✅ Giao thành công</Tag>
+                    <p style={{ margin: "8px 0" }}>
+                      <Text strong type="danger">
+                        {order.totalPrice.toLocaleString("vi-VN")} đ
+                      </Text>
+                    </p>
+                    <Text type="secondary" style={{ fontSize: "11px" }}>
+                      {new Date(order.createdAt).toLocaleString("vi-VN")}
+                    </Text>
                   </Card>
                 ))}
               </Space>
