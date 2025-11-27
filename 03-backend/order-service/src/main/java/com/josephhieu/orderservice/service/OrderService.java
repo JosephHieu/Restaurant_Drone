@@ -67,10 +67,16 @@ public class OrderService {
         // (Feign Client 'restaurantClient' đã được @Autowired)
         RestaurantDto restaurant = restaurantClient.getRestaurantById(cart.getRestaurantId());
 
-        // B. Lấy tọa độ khách (điểm giao)
-        // (Tạm thời: Giả lập. Sau này bạn sẽ lấy từ 'orderRequest' hoặc 'userClient')
-        BigDecimal customerLat = new BigDecimal("10.8888"); // (Giả lập Vĩ độ khách)
-        BigDecimal customerLng = new BigDecimal("106.7777"); // (Giả lập Kinh độ khách)
+        // B. Lấy tọa độ khách từ request (nếu có)
+        BigDecimal customerLat = orderRequest.getDeliveryLat();
+        BigDecimal customerLng = orderRequest.getDeliveryLng();
+        
+        // Nếu không có tọa độ, dùng giá trị mặc định (TPHCM)
+        if (customerLat == null || customerLng == null) {
+            customerLat = new BigDecimal("10.762622");
+            customerLng = new BigDecimal("106.660172");
+            System.out.println("⚠️ Tọa độ không được cung cấp, sử dụng tọa độ mặc định.");
+        }
 
         // C. Tính toán khoảng cách
         double distance = locationService.calculateDistance(
@@ -78,10 +84,10 @@ public class OrderService {
                 customerLat, customerLng
         );
 
-        // D. Kiểm tra
-        if (distance > 20) { // Kiểm tra bán kính 5km
+        // D. Kiểm tra bán kính giao hàng (20km)
+        if (distance > 20) {
             throw new IllegalStateException(String.format(
-                    "Khoảng cách giao hàng (%.1f km) vượt quá giới hạn 5km. Không thể đặt hàng.", distance
+                    "Khoảng cách giao hàng (%.1f km) vượt quá giới hạn 20km. Không thể đặt hàng.", distance
             ));
         }
         // ============================
@@ -93,6 +99,10 @@ public class OrderService {
         order.setDeliveryAddress(orderRequest.getDeliveryAddress());
         order.setPaymentMethod(orderRequest.getPaymentMethod());
         order.setStatus("PENDING");
+        
+        // Lưu tọa độ giao hàng
+        order.setDeliveryLat(customerLat);
+        order.setDeliveryLng(customerLng);
 
         BigDecimal grandTotal = BigDecimal.ZERO;
         List<OrderItem> orderItems = new ArrayList<>();
@@ -174,51 +184,78 @@ public class OrderService {
 
     /**
      * API: GET /api/orders/restaurant/{restaurantId}
-     * (Đã đúng)
+     * Lấy tất cả đơn hàng của nhà hàng (trừ CANCELLED)
      */
     public List<Order> getRestaurantOrders(Integer restaurantId, CustomUserDetails user) {
         checkRestaurantOwnership(restaurantId, user);
-        List<String> statusesToFetch = Arrays.asList("PENDING", "CONFIRMED");
+        // Lấy tất cả đơn hàng: PENDING, CONFIRMED, DELIVERING, COMPLETED
+        List<String> statusesToFetch = Arrays.asList("PENDING", "CONFIRMED", "DELIVERING", "COMPLETED");
         return orderRepository.findAllByRestaurantIdAndStatusInOrderByCreatedAtAsc(restaurantId, statusesToFetch);
     }
 
     /**
      * API: PUT /api/orders/{id}/status
-     * (Đã đúng)
+     * Cho chủ nhà hàng cập nhật trạng thái đơn hàng
      */
     @Transactional
     public Order updateOrderStatus(Integer orderId, UpdateOrderStatusRequest request, CustomUserDetails user) {
-        String authHeader = getAuthHeader(); // Lấy token để gọi service khác
-
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
 
+        // Kiểm tra quyền sở hữu nhà hàng
         checkRestaurantOwnership(order.getRestaurantId(), user);
 
         String newStatus = request.getStatus();
-        order.setStatus(newStatus);
 
-        // (Logic kích hoạt Drone đã đúng)
-        if ("READY_FOR_DELIVERY".equals(newStatus)) {
-
-            RestaurantDto restaurant = restaurantClient.getRestaurantById(order.getRestaurantId());
-
-            // (Tạm thời giả lập)
-            BigDecimal customerLat = new BigDecimal("10.8888");
-            BigDecimal customerLng = new BigDecimal("106.7777");
-
-            DeliveryRequestDto deliveryRequest = new DeliveryRequestDto();
-            deliveryRequest.setOrderId(orderId);
-            deliveryRequest.setStartLat(restaurant.getLatitude());
-            deliveryRequest.setStartLng(restaurant.getLongitude());
-            deliveryRequest.setEndLat(customerLat);
-            deliveryRequest.setEndLng(customerLng);
-
-            DeliveryResponseDto deliveryResponse = droneClient.createDelivery(deliveryRequest, authHeader);
-
-            order.setDeliveryId(deliveryResponse.getDeliveryId());
+        // Validate transition hợp lệ:
+        // PENDING -> CONFIRMED
+        // CONFIRMED -> DELIVERING
+        // (DELIVERING -> COMPLETED do customer xác nhận qua /confirm-delivery)
+        String currentStatus = order.getStatus();
+        
+        if ("CONFIRMED".equals(newStatus) && "PENDING".equals(currentStatus)) {
+            order.setStatus("CONFIRMED");
+            System.out.println("✅ Đơn hàng #" + orderId + " đã được XÁC NHẬN.");
+        } else if ("DELIVERING".equals(newStatus) && "CONFIRMED".equals(currentStatus)) {
+            order.setStatus("DELIVERING");
+            System.out.println("🚁 Đơn hàng #" + orderId + " đang được GIAO HÀNG.");
+        } else if ("CANCELLED".equals(newStatus)) {
+            order.setStatus("CANCELLED");
+            System.out.println("❌ Đơn hàng #" + orderId + " đã bị HỦY.");
+        } else {
+            throw new IllegalStateException(String.format(
+                "Không thể chuyển từ trạng thái '%s' sang '%s'.", currentStatus, newStatus
+            ));
         }
 
+        return orderRepository.save(order);
+    }
+
+    /**
+     * API: PUT /api/orders/{id}/confirm-delivery
+     * Cho khách hàng xác nhận đã nhận hàng (DELIVERING -> COMPLETED)
+     */
+    @Transactional
+    public Order confirmDelivery(Integer orderId, CustomUserDetails user) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order", "id", orderId));
+
+        // Kiểm tra đây là đơn hàng của khách hàng này
+        if (!order.getCustomerId().equals(user.getId())) {
+            throw new AccessDeniedException("Bạn không có quyền xác nhận đơn hàng này.");
+        }
+
+        // Chỉ cho phép xác nhận khi đang ở trạng thái DELIVERING
+        if (!"DELIVERING".equals(order.getStatus())) {
+            throw new IllegalStateException(String.format(
+                "Không thể xác nhận nhận hàng. Đơn hàng đang ở trạng thái '%s', cần ở trạng thái 'DELIVERING'.",
+                order.getStatus()
+            ));
+        }
+
+        order.setStatus("COMPLETED");
+        System.out.println("✅ Đơn hàng #" + orderId + " đã được khách hàng xác nhận HOÀN THÀNH.");
+        
         return orderRepository.save(order);
     }
 

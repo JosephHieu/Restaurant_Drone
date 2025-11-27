@@ -9,9 +9,9 @@ spring:
     banner-mode: off
 
   datasource:
-    url: jdbc:mysql://localhost:3308/user_service
-    username: root
-    password: root
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -69,5 +69,5 @@ eureka:
       defaultZone: http://localhost:8761/eureka
 
 jwt:
-  secret: hsXSXV5UGLVBCqob4jHK6FzXCJ8OUtZNSBwdvYXv5I8XiR2Ef9
-  expiration-ms: 86400000
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRE}

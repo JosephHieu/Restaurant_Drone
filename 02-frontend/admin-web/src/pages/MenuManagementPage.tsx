@@ -40,12 +40,6 @@ interface MenuItemFormData {
   available: boolean;
 }
 
-const getImageUrl = (imageUri: string | undefined): string | null => {
-  if (!imageUri) return null;
-  // URL đã được sửa để trỏ qua API Gateway
-  return `http://localhost:8080/api/restaurants/images/${imageUri}`;
-};
-
 const MenuManagementPage: React.FC = () => {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   // Danh sách TẤT CẢ nhà hàng của chủ quán
@@ -344,9 +338,7 @@ const MenuManagementPage: React.FC = () => {
       render: (imageUri: string) => {
         // Nếu không có URI, dùng placeholder, nếu có, gọi hàm helper
         const imageUrl =
-          getImageUrl(imageUri) ||
-          "https://via.placeholder.com/80?text=No+Image";
-
+          imageUri || "https://via.placeholder.com/80?text=No+Image";
         return <Image width={80} src={imageUrl} alt="Món ăn" />;
       },
       width: 100,
@@ -463,18 +455,14 @@ const MenuManagementPage: React.FC = () => {
             <Input.TextArea rows={2} />
           </Form.Item>
           <Form.Item name="imageUri" label="Link Ảnh (URL)">
-            {/* Xem trước ảnh (URL tạm thời hoặc URL từ DB) */}
             {(previewUrl || editingItem?.imageUri) && (
               <Image
                 width={100}
                 style={{ marginBottom: 10, display: "block" }}
-                src={
-                  previewUrl ||
-                  `http://localhost:8080/api/restaurants/images/${editingItem?.imageUri}`
-                }
+                src={previewUrl || editingItem?.imageUri}
               />
             )}
-            {/* Input File */}
+
             <Input
               type="file"
               accept=".jpg,.jpeg,.png"

@@ -316,19 +316,20 @@ const AdminRestaurantAddPage: React.FC = () => {
 
               {/* === 8. THÊM KHỐI UPLOAD ẢNH === */}
               <Form.Item name="coverImageUri" label="Ảnh bìa nhà hàng">
-                {/* Xem trước ảnh */}
-                {previewUrl && (
-                  <Image
-                    width={200}
-                    style={{
-                      marginBottom: 10,
-                      display: "block",
-                      border: "1px solid #eee",
-                    }}
-                    src={previewUrl}
-                  />
-                )}
-                {/* Input File */}
+                <Image
+                  width={200}
+                  style={{
+                    marginBottom: 10,
+                    display: "block",
+                    border: "1px solid #eee",
+                  }}
+                  src={
+                    previewUrl ||
+                    form.getFieldValue("coverImageUri") ||
+                    "https://via.placeholder.com/200?text=No+Image"
+                  }
+                />
+
                 <Input
                   type="file"
                   accept=".jpg,.jpeg,.png"

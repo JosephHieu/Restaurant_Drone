@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 interface DroneTrackingMapProps {
   restaurantLocation: { lat: number; lng: number };
@@ -8,7 +8,7 @@ interface DroneTrackingMapProps {
   isDelivering: boolean;
   onDeliveryComplete?: () => void;
   animationDuration?: number;
-  orderId?: number;
+  orderId?: number; // Thêm orderId để track animation state
 }
 
 // Component bản đồ - sử dụng Leaflet API trực tiếp
@@ -35,9 +35,11 @@ function LeafletMapInner({
       const L = (await import("leaflet")).default;
       await import("leaflet/dist/leaflet.css");
 
+      // Tính center và bounds
       const centerLat = (restaurantLocation.lat + customerLocation.lat) / 2;
       const centerLng = (restaurantLocation.lng + customerLocation.lng) / 2;
 
+      // Tạo map
       const map = L.map(mapContainerId.current, {
         center: [centerLat, centerLng],
         zoom: 13,
@@ -46,16 +48,19 @@ function LeafletMapInner({
 
       mapRef.current = map;
 
+      // Tile layer
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map);
 
+      // Fit bounds
       const bounds = L.latLngBounds(
         [restaurantLocation.lat, restaurantLocation.lng],
         [customerLocation.lat, customerLocation.lng]
       );
       map.fitBounds(bounds, { padding: [50, 50] });
 
+      // Route line
       L.polyline(
         [
           [restaurantLocation.lat, restaurantLocation.lng],
@@ -64,6 +69,7 @@ function LeafletMapInner({
         { color: "#3b82f6", weight: 3, dashArray: "10, 10" }
       ).addTo(map);
 
+      // Restaurant marker
       const restaurantIcon = L.icon({
         iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
         shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
@@ -72,6 +78,7 @@ function LeafletMapInner({
       });
       L.marker([restaurantLocation.lat, restaurantLocation.lng], { icon: restaurantIcon }).addTo(map);
 
+      // Customer marker
       const customerIcon = L.icon({
         iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
         shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
@@ -80,6 +87,7 @@ function LeafletMapInner({
       });
       L.marker([customerLocation.lat, customerLocation.lng], { icon: customerIcon }).addTo(map);
 
+      // Drone marker
       const droneIcon = L.divIcon({
         html: `<div style="font-size: 32px; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.3));">🚁</div>`,
         iconSize: [40, 40],
@@ -102,6 +110,7 @@ function LeafletMapInner({
     };
   }, []);
 
+  // Update drone position
   useEffect(() => {
     if (droneMarkerRef.current && isReady) {
       droneMarkerRef.current.setLatLng([dronePosition.lat, dronePosition.lng]);
@@ -126,6 +135,7 @@ export default function DroneTrackingMap({
   const startTimeRef = useRef<number | null>(null);
   const hasCalledCompleteRef = useRef(false);
 
+  // Chỉ render sau khi mount ở client
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -136,6 +146,7 @@ export default function DroneTrackingMap({
       return;
     }
 
+    // Bắt đầu animation
     console.log("🚁 Bắt đầu animation drone...");
     setProgress(0);
     setDronePosition(restaurantLocation);
@@ -157,6 +168,7 @@ export default function DroneTrackingMap({
         animationRef.current = requestAnimationFrame(animate);
       } else {
         console.log("🚁 Animation hoàn thành! Drone đã đến nơi.");
+        // Chỉ gọi callback 1 lần
         if (onDeliveryComplete && !hasCalledCompleteRef.current) {
           hasCalledCompleteRef.current = true;
           onDeliveryComplete();
@@ -175,6 +187,7 @@ export default function DroneTrackingMap({
 
   return (
     <div className="space-y-3">
+      {/* Thanh tiến trình */}
       <div className="bg-gray-100 rounded-lg p-3">
         <div className="flex justify-between text-sm mb-2">
           <span className="font-medium">🚁 Trạng thái giao hàng</span>
@@ -192,6 +205,7 @@ export default function DroneTrackingMap({
         </div>
       </div>
 
+      {/* Bản đồ */}
       <div className="relative h-72 overflow-hidden rounded-xl border border-gray-200 shadow-sm">
         {isMounted ? (
           <LeafletMapInner
@@ -205,6 +219,7 @@ export default function DroneTrackingMap({
           </div>
         )}
 
+        {/* Legend */}
         <div className="absolute bottom-3 left-3 bg-white/95 rounded-lg px-3 py-2 shadow-lg z-[1000] text-xs">
           <div className="flex items-center gap-4">
             <span>🟢 Nhà hàng</span>
@@ -213,6 +228,7 @@ export default function DroneTrackingMap({
           </div>
         </div>
 
+        {/* Status badge */}
         <div className={`absolute top-3 right-3 rounded-full px-3 py-1 text-xs font-bold shadow-lg z-[1000] ${
           progress >= 100 
             ? "bg-green-500 text-white" 
@@ -222,6 +238,7 @@ export default function DroneTrackingMap({
         </div>
       </div>
 
+      {/* Thông tin thời gian */}
       <div className="text-center text-sm text-gray-600">
         {progress >= 100 ? (
           <span className="text-green-600 font-semibold">

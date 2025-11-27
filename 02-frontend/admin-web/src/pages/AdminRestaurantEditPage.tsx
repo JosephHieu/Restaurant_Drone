@@ -47,7 +47,7 @@ interface ErrorResponse {
 const getImageUrl = (imageUri: string | undefined | null): string | null => {
   if (!imageUri) return null;
   // URL này phải khớp với API Gateway
-  return `http://localhost:8080/api/restaurants/images/${imageUri}`;
+  return imageUri;
 };
 
 const AdminRestaurantEditPage: React.FC = () => {

@@ -87,6 +87,19 @@ public class OrderController {
     }
 
     /**
+     * API cho KHÁCH HÀNG xác nhận đã nhận hàng (DELIVERING -> COMPLETED)
+     */
+    @PutMapping("/{id}/confirm-delivery")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Order> confirmDelivery(
+            @PathVariable Integer id,
+            @AuthenticationPrincipal CustomUserDetails user) {
+
+        Order updatedOrder = orderService.confirmDelivery(id, user);
+        return ResponseEntity.ok(updatedOrder);
+    }
+
+    /**
      * API cho ADMIN lấy TẤT CẢ đơn hàng
      */
     @GetMapping("/all")

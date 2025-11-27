@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS `orders` (
     `delivery_address` TEXT NOT NULL,
     `status` VARCHAR(50) NOT NULL, -- Ví dụ: 'PENDING', 'CONFIRMED', 'DELIVERING', 'COMPLETED'
     `payment_method` VARCHAR(50) NOT NULL, -- 'COD' hoặc 'VNPay'
+    `delivery_id` INT DEFAULT NULL, -- ID chuyến giao hàng (Từ Drone Service)
+    `delivery_lat` DECIMAL(10, 8) DEFAULT NULL, -- Tọa độ giao hàng (latitude)
+    `delivery_lng` DECIMAL(11, 8) DEFAULT NULL, -- Tọa độ giao hàng (longitude)
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

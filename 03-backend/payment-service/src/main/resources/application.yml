@@ -9,9 +9,9 @@ spring:
     banner-mode: off
 
   datasource:
-    url: jdbc:mysql://localhost:3308/payment_service
-    username: root
-    password: root
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -30,13 +30,23 @@ eureka:
       defaultZone: http://localhost:8761/eureka/
 
 jwt:
-  secret: hsXSXV5UGLVBCqob4jHK6FzXCJ8OUtZNSBwdvYXv5I8XiR2Ef9
-  expiration-ms: 86400000
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRE}
+
+momo:
+  partner-code: MOMO
+  access-key: F8BBA842ECF85
+  secret-key: K951B6PE1waDMi640xX08PD3vg6EkVlz
+  end-point: https://test-payment.momo.vn/v2/gateway/api
+  ipn-url: http://localhost:8080/api/momo/ipn-handler
+  redirect-url: http://localhost:8080/api/payment/momo/redirect
+  refund-url: https://test-payment.momo.vn/v2/gateway/api/refund
+  request-type: captureWallet
 
 
 vnpay:
-  tmnCode: "BUT55BVY"
-  hashSecret: "V0C722VD2KWCAIOWCC5EOI24150X9V0P"
-  url: "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
-  returnUrl: "https://many-crabs-crash.loca.lt/payment-result"
-  ipnUrl: "https://rotten-shoes-burn.loca.lt/api/payments/vnpay-ipn"
+  tmnCode: BUT55BVY
+  hashSecret: V0C722VD2KWCAIOWCC5EOI24150X9V0P
+  url: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+  returnUrl: https://many-crabs-crash.loca.lt/payment-result
+  ipnUrl: https://rotten-shoes-burn.loca.lt/api/payments/vnpay-ipn

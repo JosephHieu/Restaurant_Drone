@@ -12,7 +12,7 @@ const { Title, Text, Paragraph } = Typography;
 // === SỬA LẠI HÀM NÀY ===
 const getRestaurantImageUrl = (imageUri: string | undefined): string => {
   if (imageUri) {
-    return `http://localhost:8080/api/restaurants/images/${imageUri}`;
+    return imageUri;
   }
   return "https://via.placeholder.com/1200x300?text=FoodFast+Restaurant";
 };
